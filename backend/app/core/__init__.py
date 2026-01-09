@@ -1,0 +1,1 @@
+# Bear Detection Backend - Core
