@@ -1,0 +1,46 @@
+# Cloud Run デプロイ用ビルドスクリプト
+# https://cloud.google.com/run/docs/deploying
+
+steps:
+  # Docker イメージをビルド
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/bear-api-service:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/bear-api-service:latest'
+      - '-f'
+      - 'backend/Dockerfile'
+      - 'backend'
+
+  # Docker イメージを Container Registry にプッシュ
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/bear-api-service:$COMMIT_SHA'
+
+  # Cloud Run にデプロイ
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bear-api-service'
+      - '--image=gcr.io/$PROJECT_ID/bear-api-service:$COMMIT_SHA'
+      - '--region=asia-northeast1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--memory=2Gi'
+      - '--cpu=2'
+      - '--max-instances=10'
+      - '--min-instances=0'
+      - '--set-env-vars=FIREBASE_PROJECT_ID=kuma-eye,STORAGE_TYPE=gcs,GCS_BUCKET_NAME=kuma-eye.firebasestorage.app'
+
+images:
+  - 'gcr.io/$PROJECT_ID/bear-api-service:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/bear-api-service:latest'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  timeout: '1200s'

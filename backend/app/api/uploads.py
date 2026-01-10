@@ -13,6 +13,7 @@ from sqlalchemy import func
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.auth import get_current_user, FirebaseUser
 from app.models.database import Upload, Camera, Sighting, Detection, Alert, Job
 from app.models.schemas import (
     UploadResponse, 

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_ENDPOINTS, API_BASE_URL } from '../lib/config';
+import { auth } from '../lib/firebase';
 import type {
   Camera,
   CameraListResponse,
@@ -21,6 +22,39 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// リクエストインターセプター: Firebase認証トークンを自動付与
+apiClient.interceptors.request.use(
+  async (config) => {
+    const user = auth.currentUser;
+    if (user) {
+      try {
+        const token = await user.getIdToken();
+        config.headers.Authorization = `Bearer ${token}`;
+      } catch (error) {
+        console.error('トークン取得エラー:', error);
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// レスポンスインターセプター: 認証エラー時の処理
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // 認証エラーの場合、ログインページにリダイレクト
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // =============================================================================
 // カメラAPI

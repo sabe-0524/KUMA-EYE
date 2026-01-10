@@ -5,7 +5,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.auth import initialize_firebase
 from app.api import cameras, uploads, sightings, alerts, images
+
+# Firebase Admin SDK初期化
+initialize_firebase()
 
 app = FastAPI(
     title="Bear Detection API",

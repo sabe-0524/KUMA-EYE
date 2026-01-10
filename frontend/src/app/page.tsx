@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { UploadPanel } from '@/features/upload-footage';
 import { CameraRegisterPanel } from '@/features/camera-register';
 import { AlertPanel } from '@/widgets/alert-panel';
-import { Menu, X, Upload, Bell, Map, RefreshCw, Camera } from 'lucide-react';
+import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut } from 'lucide-react';
+import { useAuth } from '@/shared/providers/AuthProvider';
 import type { Alert, Sighting } from '@/shared/types';
 
 // SSRを無効化してMapViewを読み込む（Leafletはクライアントサイドのみ）
@@ -24,8 +26,17 @@ const MapView = dynamic(
 type ActivePanel = 'upload' | 'alerts' | 'camera' | null;
 
 export default function HomePage() {
+  const { user, loading, logout } = useAuth();
+  const router = useRouter();
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // 未認証の場合はログインページにリダイレクト
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
 
   // 地図データを更新
   const refreshMap = useCallback(() => {
@@ -54,6 +65,32 @@ export default function HomePage() {
     setActivePanel(prev => prev === panel ? null : panel);
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/login');
+    } catch (error) {
+      console.error('ログアウト失敗:', error);
+    }
+  };
+
+  // ローディング中
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-amber-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 未認証（リダイレクト処理中）
+  if (!user) {
+    return null;
+  }
+
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
       {/* ヘッダー */}
@@ -62,7 +99,10 @@ export default function HomePage() {
           <h1 className="text-xl font-bold flex items-center gap-2">
             🐻 クマ検出警報システム
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-amber-600 rounded-lg">
+              <span className="text-sm">{user.displayName || user.email}</span>
+            </div>
             <button
               onClick={refreshMap}
               className="p-2 hover:bg-amber-600 rounded-lg transition-colors"
@@ -96,6 +136,13 @@ export default function HomePage() {
               title="警報一覧"
             >
               <Bell className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="p-2 hover:bg-red-600 rounded-lg transition-colors"
+              title="ログアウト"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
         </div>

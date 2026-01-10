@@ -8,6 +8,7 @@ from typing import List, Optional
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
 
 from app.core.database import get_db
+from app.core.auth import get_current_user, get_optional_user, FirebaseUser
 from app.models.database import Camera
 from app.models.schemas import (
     CameraCreate, 
@@ -20,9 +21,13 @@ router = APIRouter(prefix="/cameras", tags=["cameras"])
 
 
 @router.post("", response_model=CameraResponse, status_code=status.HTTP_201_CREATED)
-def create_camera(camera: CameraCreate, db: Session = Depends(get_db)):
+def create_camera(
+    camera: CameraCreate, 
+    db: Session = Depends(get_db),
+    current_user: FirebaseUser = Depends(get_current_user)
+):
     """
-    カメラを登録
+    カメラを登録（要認証）
     """
     # PostGIS Point作成
     location = func.ST_SetSRID(
@@ -51,10 +56,11 @@ def list_cameras(
     is_active: Optional[bool] = None,
     limit: int = 100,
     offset: int = 0,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[FirebaseUser] = Depends(get_optional_user)
 ):
     """
-    カメラ一覧を取得
+    カメラ一覧を取得（認証オプション）
     """
     query = db.query(Camera)
     

@@ -18,12 +18,17 @@ class Settings(BaseSettings):
     CELERY_WORKER_CONCURRENCY: int = 2
     
     # Storage
-    STORAGE_TYPE: str = "local"  # "local" or "s3"
+    STORAGE_TYPE: str = "local"  # "local" or "gcs"
     LOCAL_STORAGE_PATH: str = "./storage"
+    GCS_BUCKET_NAME: str = ""  # Google Cloud Storage bucket name
     S3_BUCKET_NAME: str = ""
     S3_REGION: str = ""
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
+    
+    # Firebase
+    FIREBASE_PROJECT_ID: str = "kuma-eye"
+    FIREBASE_SERVICE_ACCOUNT_KEY: str = ""  # Path to service account key (optional for Cloud Run)
     
     # Detection Model
     MODEL_PATH: str = "./models/bear_detector.pt"

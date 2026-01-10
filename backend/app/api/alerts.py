@@ -7,6 +7,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from app.core.database import get_db
+from app.core.auth import get_current_user, get_optional_user, FirebaseUser
 from app.models.database import Alert, Sighting, Upload, Camera
 from app.models.schemas import (
     AlertResponse,

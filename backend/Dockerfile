@@ -26,15 +26,15 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
-# Create storage directories
-RUN mkdir -p /app/storage/videos \
-    /app/storage/images \
-    /app/storage/frames \
-    /app/storage/processed \
-    /app/models
+# Create models directory
+RUN mkdir -p /app/models
 
-# Expose port
-EXPOSE 8000
+# Set environment variables for Cloud Run
+ENV PORT=8080
+ENV PYTHONUNBUFFERED=1
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Expose port (Cloud Run uses PORT environment variable)
+EXPOSE 8080
+
+# Run the application (production mode without --reload)
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 2
