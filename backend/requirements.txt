@@ -1,46 +1,46 @@
 # FastAPI and Server
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.6
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
 
 # Database
-sqlalchemy==2.0.25
-psycopg2-binary==2.9.9
-asyncpg==0.29.0
-geoalchemy2==0.14.3
+sqlalchemy>=2.0.25
+psycopg2-binary>=2.9.9
+asyncpg>=0.29.0
+geoalchemy2>=0.14.3
 
 # Redis and Celery
-redis==5.0.1
-celery==5.3.6
+redis>=5.0.1
+celery>=5.3.6
 
 # AI/ML - YOLO
 ultralytics>=8.3.0
-torch>=2.0.0,<2.6.0
+torch>=2.0.0
 torchvision>=0.15.0
-opencv-python-headless==4.9.0.80
+opencv-python-headless>=4.9.0
 
 # Image Processing
-pillow==10.2.0
+pillow>=10.2.0
 numpy>=1.24.0
 
 # Video Processing
-ffmpeg-python==0.2.0
+ffmpeg-python>=0.2.0
 
 # Configuration
-pydantic==2.5.3
-pydantic-settings==2.1.0
+pydantic>=2.5.3
+pydantic-settings>=2.1.0
 
 # HTTP Client
-httpx==0.26.0
-aiofiles==23.2.1
+httpx>=0.26.0
+aiofiles>=23.2.1
 
 # Utilities
-python-dotenv==1.0.0
+python-dotenv>=1.0.0
 
 # Firebase Admin SDK
-firebase-admin==6.4.0
+firebase-admin>=6.4.0
 
 # Google Cloud Storage
-google-cloud-storage==2.14.0
+google-cloud-storage>=2.14.0
