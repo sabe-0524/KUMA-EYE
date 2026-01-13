@@ -1,29 +1,41 @@
 # Bear Detection System - Makefile
 
-.PHONY: help dev stop clean logs seed test build
+.PHONY: help dev dev-docker stop stop-docker clean logs seed test build
 
 # デフォルトターゲット
 help:
 	@echo "🐻 クマ検出警報システム"
 	@echo ""
 	@echo "利用可能なコマンド:"
-	@echo "  make dev      - 開発環境を起動"
-	@echo "  make stop     - 開発環境を停止"
-	@echo "  make clean    - 開発環境を停止しデータを削除"
-	@echo "  make logs     - ログを表示"
-	@echo "  make seed     - サンプルデータを投入"
-	@echo "  make build    - イメージを再ビルド"
-	@echo "  make backend  - バックエンドのログを表示"
-	@echo "  make frontend - フロントエンドのログを表示"
-	@echo "  make db       - データベースに接続"
+	@echo "  make dev        - ローカル開発環境を起動（Docker不要）"
+	@echo "  make stop       - ローカル開発環境を停止"
+	@echo "  make dev-docker - Docker開発環境を起動"
+	@echo "  make stop-docker- Docker開発環境を停止"
+	@echo "  make clean      - 開発環境を停止しデータを削除"
+	@echo "  make logs       - Dockerログを表示"
+	@echo "  make seed       - サンプルデータを投入"
+	@echo "  make build      - Dockerイメージを再ビルド"
+	@echo "  make backend    - バックエンドのログを表示"
+	@echo "  make frontend   - フロントエンドのログを表示"
+	@echo "  make db         - データベースに接続"
 
-# 開発環境起動
+# ローカル開発環境起動（Docker不要）
 dev:
+	@chmod +x start-local.sh
+	@./start-local.sh
+
+# Docker開発環境起動
+dev-docker:
 	@chmod +x scripts/*.sh
 	@./scripts/start-dev.sh
 
-# 停止
+# ローカル開発環境停止
 stop:
+	@chmod +x stop-local.sh
+	@./stop-local.sh
+
+# Docker開発環境停止
+stop-docker:
 	@./scripts/stop-dev.sh
 
 # 完全クリーン

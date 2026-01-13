@@ -7,28 +7,55 @@
 ### 方法1: Makefileを使用（推奨）
 
 ```bash
-# 開発環境を起動
+# ローカル開発環境を起動（Docker不要）
 make dev
+
+# 停止
+make stop
+```
+
+### 方法2: 手動起動（Docker不要）
+
+**ターミナル1 - バックエンド:**
+```bash
+cd backend
+source venv/bin/activate  # 初回: python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**ターミナル2 - フロントエンド:**
+```bash
+cd frontend
+npm install  # 初回のみ
+npm run dev
+```
+
+**アクセス:**
+- フロントエンド: http://localhost:3000
+- バックエンドAPI: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+### 方法3: スクリプトを使用
+
+```bash
+# 起動
+./start-local.sh
+
+# 停止
+./stop-local.sh
+```
+
+### 方法4: Docker Composeを使用
+
+```bash
+# Docker環境で起動
+make dev-docker
+
+# または直接
+docker compose up -d
 
 # サンプルデータを投入
 make seed
-```
-
-### 方法2: スクリプトを使用
-
-```bash
-# 開発環境を起動
-./scripts/start-dev.sh
-
-# サンプルデータを投入
-./scripts/seed_data.sh
-```
-
-### 方法3: Docker Composeを直接使用
-
-```bash
-# リポジトリルートで実行
-docker compose up -d
 ```
 
 これで以下のサービスが起動します:
@@ -77,16 +104,25 @@ docker compose up -d
 ## 🧰 便利なコマンド (Makefile)
 
 ```bash
-make dev      # 開発環境を起動
-make stop     # 開発環境を停止
-make clean    # 停止＋データ削除
-make logs     # 全ログを表示
-make seed     # サンプルデータを投入
-make build    # イメージを再ビルド
-make backend  # バックエンドログのみ表示
-make frontend # フロントエンドログのみ表示
-make db       # PostgreSQLに接続
-make status   # サービス状態確認
+# ローカル開発（Docker不要）
+make dev          # ローカル開発環境を起動
+make stop         # ローカル開発環境を停止
+
+# Docker開発
+make dev-docker   # Docker開発環境を起動
+make stop-docker  # Docker開発環境を停止
+make clean        # 停止＋データ削除
+make build        # イメージを再ビルド
+
+# ログ・管理
+make logs         # 全ログを表示
+make backend      # バックエンドログのみ表示
+make frontend     # フロントエンドログのみ表示
+make status       # サービス状態確認
+
+# データベース
+make db           # PostgreSQLに接続
+make seed         # サンプルデータを投入
 ```
 
 ## 🎯 主な機能
