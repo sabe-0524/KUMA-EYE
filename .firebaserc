@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "dev": "kuma-eye",
+    "default": "kuma-eye"
+  },
+  "targets": {},
+  "etags": {}
+}
