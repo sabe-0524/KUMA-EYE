@@ -13,7 +13,7 @@ import type {
   AlertCount,
   UploadResponse,
   UploadDetail,
-} from '../types';
+} from '@/shared/types';
 
 // Axiosインスタンス
 const apiClient = axios.create({

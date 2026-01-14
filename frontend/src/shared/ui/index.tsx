@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { X } from 'lucide-react';
-import { getFullImageUrl } from '../api';
+import { getFullImageUrl } from '@/shared/api';
 
 interface ImageModalProps {
   imageUrl: string;
