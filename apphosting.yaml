@@ -12,8 +12,7 @@ runConfig:
 env:
   # フロントエンドの環境変数
   - variable: NEXT_PUBLIC_API_URL
-    value: https://bear-api-service-xxxxx-an.a.run.app/api/v1
-    # デプロイ後にCloud RunのURLに置き換える
+    value: https://bear-api-service-52533905728.asia-northeast1.run.app/api/v1
   
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: AIzaSyC-cN_5EKGlfbVi61AD0_-1AED24kghSWk

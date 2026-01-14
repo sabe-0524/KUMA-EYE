@@ -108,6 +108,9 @@ gcloud run deploy bear-api-service \
 4. **デプロイ後のURLを取得**
 ```bash
 gcloud run services describe bear-api-service --region=asia-northeast1 --format="value(status.url)"
+# ✅ デプロイ完了 (2026/01/14)
+# URL: https://bear-api-service-52533905728.asia-northeast1.run.app
+```
 # 例: https://bear-api-service-xxxxx-an.a.run.app
 ```
 
