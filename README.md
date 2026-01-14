@@ -2,6 +2,34 @@
 
 監視カメラの映像から熊を自動検出し、地図上に出没地点をマッピングするシステム
 
+## 🌐 デプロイ情報
+
+### 本番環境（予定）
+
+| コンポーネント | サービス | URL | ステータス |
+|--------------|---------|-----|-----------|
+| フロントエンド | Firebase App Hosting | `https://kuma-eye.web.app` | 🚧 準備中 |
+| バックエンドAPI | Google Cloud Run | TBD | 🚧 準備中 |
+| データベース | Supabase (PostgreSQL + PostGIS) | `aws-1-ap-northeast-1.pooler.supabase.com` | ✅ 稼働中 |
+| 認証 | Firebase Authentication | Firebase Project: `kuma-eye` | ✅ 設定済み |
+| ストレージ | Cloud Storage (GCS) | `kuma-eye.firebasestorage.app` | ✅ 設定済み |
+
+### ローカル開発環境
+
+| コンポーネント | 技術スタック | ポート |
+|--------------|-------------|--------|
+| フロントエンド | Next.js 15.0.0 + React 18 + TypeScript | 3000 |
+| バックエンドAPI | FastAPI + Python 3.13 | 8000 |
+| データベース | Supabase (リモート接続) | - |
+| 認証 | Firebase Auth (Googleプロバイダ) | - |
+| ファイルストレージ | ローカル (`./backend/storage`) | - |
+
+### デプロイ手順
+
+本番環境へのデプロイ方法は [DEPLOYMENT.md](DEPLOYMENT.md) を参照してください。
+
+---
+
 ## 🚀 クイックスタート
 
 ### 方法1: Makefileを使用（推奨）
@@ -127,10 +155,31 @@ make seed         # サンプルデータを投入
 
 ## 🎯 主な機能
 
+### 🔐 認証機能
+- **Firebase Authentication**: Googleアカウントでログイン
+- **JWT トークン認証**: APIアクセスの保護
+
+### 📹 映像アップロード・熊検出
 - **POST /api/v1/uploads** - 映像アップロードと熊検出
-- **GET /api/v1/sightings** - 目撃情報一覧（地図表示用）
+  - 動画・画像ファイルのアップロード
+  - YOLOv8による自動熊検出
+  - 検出結果の可視化
+
+### 🗺️ 地図表示・目撃情報
+- **GET /api/v1/sightings** - 目撃情報一覧
+  - 地図上にマーカー表示
+  - 信頼度に応じた色分け
+  - 検出画像のプレビュー
+
+### 🚨 警報管理
 - **GET /api/v1/alerts** - 警報一覧
+  - リアルタイム警報表示
+  - 警報レベルによる優先度表示
+
+### 📷 カメラ管理
 - **GET /api/v1/cameras** - カメラ一覧
+  - 監視カメラの位置情報
+  - アクティブ状態管理
 
 ## 🐻 検出可能
 
@@ -148,6 +197,37 @@ make seed         # サンプルデータを投入
 ## 📖 ドキュメント
 
 - [設計書](./DESIGN.md) - 完全なAPI仕様とDB設計
+- [デプロイガイド](./DEPLOYMENT.md) - 本番環境へのデプロイ手順
+
+## 🔧 技術スタック
+
+### フロントエンド
+- **Next.js 15.0.0** - Reactフレームワーク
+- **React 18.3.1** - UIライブラリ
+- **TypeScript** - 型安全性
+- **Leaflet / React Leaflet** - 地図表示
+- **Axios** - HTTP クライアント
+- **Firebase SDK** - 認証
+
+### バックエンド
+- **FastAPI** - Pythonウェブフレームワーク
+- **Python 3.13** - プログラミング言語
+- **SQLAlchemy** - ORM
+- **Psycopg2** - PostgreSQLドライバー
+- **Uvicorn** - ASGIサーバー
+- **YOLOv8 (ultralytics)** - 物体検出モデル
+- **OpenCV** - 画像・動画処理
+- **Firebase Admin SDK** - サーバーサイド認証
+
+### データベース・インフラ
+- **Supabase (PostgreSQL 15 + PostGIS)** - 位置情報対応データベース
+- **Firebase Authentication** - ユーザー認証
+- **Cloud Storage (GCS)** - ファイルストレージ
+- **Google Cloud Run** - コンテナデプロイ（予定）
+- **Firebase App Hosting** - フロントエンドホスティング（予定）
+
+### GitHubリポジトリ
+- https://github.com/sabe-0524/KUMA-EYE
 
 ## 🛠️ トラブルシューティング
 

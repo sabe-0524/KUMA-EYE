@@ -16,7 +16,12 @@ async def get_image(path: str):
     画像ファイルを配信
     
     パス例: /api/v1/images/processed/1/detected_000001.jpg
+    または: /api/v1/images/storage/processed/1/detected_000001.jpg
     """
+    # "storage/" プレフィックスを除去（DBに保存されたパスとの互換性）
+    if path.startswith("storage/"):
+        path = path[8:]  # "storage/" を除去
+    
     # ストレージパスと結合
     storage_path = Path(settings.LOCAL_STORAGE_PATH)
     file_path = storage_path / path
