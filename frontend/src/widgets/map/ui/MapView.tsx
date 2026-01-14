@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl } from 'react
 import { getSightings, getFullImageUrl } from '@/shared/api';
 import type { Sighting } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
-import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime } from '../lib/utils';
+import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
 
 // 東京周辺をデフォルト中心に

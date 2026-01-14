@@ -5,7 +5,7 @@ import { Bell, CheckCircle, AlertTriangle, X } from 'lucide-react';
 import { getUnacknowledgedAlerts, acknowledgeAlert, getAlertCount, getFullImageUrl } from '@/shared/api';
 import type { Alert, AlertCount } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis, alertLevelColors } from '@/shared/types';
-import { formatDateTime, getRelativeTime } from '@/widgets/map/lib/utils';
+import { formatDateTime, getRelativeTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
 
 interface AlertPanelProps {

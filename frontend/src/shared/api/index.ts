@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { API_ENDPOINTS, API_BASE_URL } from '../lib/config';
-import { auth } from '../lib/firebase';
+import { API_ENDPOINTS, API_BASE_URL } from '@/shared/lib/config';
+import { auth } from '@/shared/lib/firebase';
 import type {
   Camera,
   CameraListResponse,
