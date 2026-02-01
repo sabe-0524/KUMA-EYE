@@ -35,12 +35,16 @@ steps:
       - '--cpu=2'
       - '--max-instances=10'
       - '--min-instances=0'
-      - '--set-env-vars=FIREBASE_PROJECT_ID=kuma-eye,STORAGE_TYPE=gcs,GCS_BUCKET_NAME=kuma-eye.firebasestorage.app'
+      - '--set-env-vars=DATABASE_URL=${_DATABASE_URL},FIREBASE_PROJECT_ID=kuma-eye,STORAGE_TYPE=gcs,GCS_BUCKET_NAME=kuma-eye.firebasestorage.app,CORS_ORIGINS=https://kuma-eye.web.app,https://kuma-eye-dev--kuma-eye.us-central1.hosted.app'
 
 images:
   - 'gcr.io/$PROJECT_ID/bear-api-service:$COMMIT_SHA'
   - 'gcr.io/$PROJECT_ID/bear-api-service:latest'
 
+substitutions:
+  _DATABASE_URL: "postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+
+timeout: '1200s'
+
 options:
   machineType: 'E2_HIGHCPU_8'
-  timeout: '1200s'

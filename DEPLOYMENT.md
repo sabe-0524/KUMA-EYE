@@ -90,8 +90,9 @@ cd /Users/abesouichirou/Desktop/hack1_bear
 # 環境変数を設定（Supabase接続文字列を使用）
 export DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
 
-# Cloud Buildでデプロイ
-gcloud builds submit --config=cloudbuild.yaml
+# Cloud Buildでデプロイ（DATABASE_URL を渡す）
+gcloud builds submit --config=cloudbuild.yaml \
+  --substitutions=_DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
 
 # または直接デプロイ
 gcloud run deploy bear-api-service \
