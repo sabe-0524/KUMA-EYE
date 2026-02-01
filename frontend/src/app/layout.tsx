@@ -6,10 +6,10 @@ import { AuthProvider } from '@/shared/providers/AuthProvider';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'クマ検出警報システム',
+  title: '🐻 クマ検出警報システム',
   description: '監視カメラ映像からクマを自動検出し、警報を発信するシステム',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/icon.svg',
   },
 };
 
