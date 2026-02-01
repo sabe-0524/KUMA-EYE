@@ -22,7 +22,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({ imageUrl, alt = '検出�
       <div className="relative max-w-4xl max-h-[90vh] p-4">
         <button
           onClick={onClose}
-          className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-lg hover:bg-gray-100"
+          className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-lg hover:bg-slate-100"
         >
           <X className="w-6 h-6" />
         </button>

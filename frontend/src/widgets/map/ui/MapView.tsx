@@ -90,8 +90,8 @@ const SightingMarkers: React.FC<{
 
 // 凡例コンポーネント
 const Legend: React.FC = () => (
-  <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
-    <h4 className="font-semibold text-sm mb-2">警報レベル</h4>
+  <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur rounded-xl border border-slate-200/70 shadow-lg p-3 z-[1000]">
+    <h4 className="font-semibold text-sm text-slate-900 mb-2">警報レベル</h4>
     <div className="space-y-1">
       {(['critical', 'warning', 'caution', 'low'] as const).map((level) => (
         <div key={level} className="flex items-center gap-2 text-sm">
@@ -171,10 +171,10 @@ export const MapView: React.FC<MapViewProps> = ({
 
   if (loading) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-amber-50/60 to-emerald-50/40">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">地図を読み込み中...</p>
+          <p className="text-slate-600">地図を読み込み中...</p>
         </div>
       </div>
     );
@@ -199,7 +199,7 @@ export const MapView: React.FC<MapViewProps> = ({
       <Legend />
 
       {error && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-100 text-red-700 px-4 py-2 rounded-lg shadow z-[1000]">
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-500/10 text-red-700 px-4 py-2 rounded-lg border border-red-200/80 shadow z-[1000]">
           {error}
         </div>
       )}

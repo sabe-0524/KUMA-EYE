@@ -58,16 +58,16 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow h-full flex flex-col">
+    <div className="bg-white/95 backdrop-blur rounded-xl border border-slate-200/70 shadow-sm h-full flex flex-col">
       {/* ヘッダー */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-slate-200/70 bg-slate-50/60">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
             <Bell className="w-5 h-5" />
             警報
           </h2>
           {alertCount.unacknowledged > 0 && (
-            <span className="px-2 py-1 bg-red-100 text-red-700 text-sm font-medium rounded-full">
+            <span className="px-2 py-1 bg-red-500/10 text-red-700 text-sm font-medium rounded-full border border-red-200/80">
               {alertCount.unacknowledged}件
             </span>
           )}
@@ -83,20 +83,20 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
       {/* 警報リスト */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="p-4 text-center text-gray-500">
+          <div className="p-4 text-center text-slate-500">
             読み込み中...
           </div>
         ) : alerts.length === 0 ? (
           <div className="p-8 text-center">
             <CheckCircle className="w-12 h-12 mx-auto text-green-500 mb-2" />
-            <p className="text-gray-600">未確認の警報はありません</p>
+            <p className="text-slate-600">未確認の警報はありません</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-slate-100">
             {alerts.map((alert) => (
               <div
                 key={alert.id}
-                className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                className="p-3 hover:bg-slate-50/80 cursor-pointer transition-colors"
                 onClick={() => onAlertClick?.(alert)}
               >
                 <div className="flex items-start gap-3">
@@ -112,13 +112,13 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
                       <span className="font-medium text-sm">
                         {alertLevelEmojis[alert.alert_level]} {alertLevelLabels[alert.alert_level]}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-slate-500">
                         {getRelativeTime(alert.notified_at)}
                       </span>
                     </div>
                     
                     {/* メッセージ */}
-                    <p className="text-sm text-gray-700 line-clamp-2">
+                    <p className="text-sm text-slate-700 line-clamp-2">
                       {alert.message}
                     </p>
                     
@@ -127,7 +127,7 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
                       <img
                         src={getFullImageUrl(alert.sighting.image_url)}
                         alt="検出画像"
-                        className="mt-2 w-full h-20 object-cover rounded cursor-pointer hover:opacity-80"
+                        className="mt-2 w-full h-20 object-cover rounded-md cursor-pointer hover:opacity-80"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedImage(alert.sighting!.image_url!);
@@ -137,7 +137,7 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
                     
                     {/* カメラ名 */}
                     {alert.sighting?.camera && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-slate-500 mt-1">
                         📹 {alert.sighting.camera.name}
                       </p>
                     )}
@@ -146,7 +146,7 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
                   {/* 確認ボタン */}
                   <button
                     onClick={(e) => handleAcknowledge(alert.id, e)}
-                    className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                    className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
                     title="確認済みにする"
                   >
                     <CheckCircle className="w-5 h-5" />

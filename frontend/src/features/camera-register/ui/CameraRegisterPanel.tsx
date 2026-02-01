@@ -112,14 +112,14 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
     <div className="space-y-6">
       {/* 登録フォーム */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+        <h3 className="font-semibold text-slate-800 flex items-center gap-2">
           <Camera className="w-5 h-5" />
           新規カメラ登録
         </h3>
 
         {/* カメラ名 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1">
             カメラ名 <span className="text-red-500">*</span>
           </label>
           <input
@@ -127,7 +127,7 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="例: 山間部監視カメラA"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50/60 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
             disabled={isSubmitting}
           />
         </div>
@@ -135,13 +135,13 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
         {/* 位置情報 */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-slate-700">
               位置情報 <span className="text-red-500">*</span>
             </label>
             <button
               type="button"
               onClick={getCurrentLocation}
-              className="text-sm text-amber-600 hover:text-amber-700 flex items-center gap-1"
+              className="text-sm text-amber-700 hover:text-amber-800 flex items-center gap-1"
             >
               <MapPin className="w-4 h-4" />
               現在地を取得
@@ -150,26 +150,26 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">緯度</label>
+              <label className="block text-xs text-slate-500 mb-1">緯度</label>
               <input
                 type="number"
                 step="any"
                 value={latitude}
                 onChange={(e) => setLatitude(e.target.value)}
                 placeholder="35.6812"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50/60 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                 disabled={isSubmitting}
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">経度</label>
+              <label className="block text-xs text-slate-500 mb-1">経度</label>
               <input
                 type="number"
                 step="any"
                 value={longitude}
                 onChange={(e) => setLongitude(e.target.value)}
                 placeholder="139.7671"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50/60 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                 disabled={isSubmitting}
               />
             </div>
@@ -178,7 +178,7 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
 
         {/* 説明 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1">
             説明（任意）
           </label>
           <textarea
@@ -186,14 +186,14 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="例: 北アルプス山麓の監視カメラ"
             rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50/60 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 resize-none"
             disabled={isSubmitting}
           />
         </div>
 
         {/* エラーメッセージ */}
         {error && (
-          <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+          <div className="flex items-center gap-2 text-red-600 text-sm bg-red-500/10 p-3 rounded-lg border border-red-200/80">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {error}
           </div>
@@ -201,7 +201,7 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
 
         {/* 成功メッセージ */}
         {success && (
-          <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 p-3 rounded-lg">
+          <div className="flex items-center gap-2 text-green-600 text-sm bg-green-500/10 p-3 rounded-lg border border-green-200/80">
             <Check className="w-4 h-4 flex-shrink-0" />
             カメラを登録しました
           </div>
@@ -211,7 +211,7 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-2 px-4 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 px-4 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center gap-2"
         >
           {isSubmitting ? (
             <>
@@ -229,14 +229,14 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
 
       {/* 登録済みカメラ一覧 */}
       <div>
-        <h3 className="font-semibold text-gray-800 mb-3">登録済みカメラ</h3>
+        <h3 className="font-semibold text-slate-800 mb-3">登録済みカメラ</h3>
         {isLoadingCameras ? (
-          <div className="text-center py-4 text-gray-500">
+          <div className="text-center py-4 text-slate-500">
             <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
             読み込み中...
           </div>
         ) : cameras.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-4">
+          <p className="text-slate-500 text-sm text-center py-4">
             登録されたカメラはありません
           </p>
         ) : (
@@ -244,23 +244,23 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
             {cameras.map((camera) => (
               <div
                 key={camera.id}
-                className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                className="p-3 bg-slate-50/70 rounded-lg border border-slate-200/80"
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-gray-800">{camera.name}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="font-medium text-slate-800">{camera.name}</p>
+                    <p className="text-xs text-slate-500 mt-1">
                       {camera.latitude.toFixed(4)}, {camera.longitude.toFixed(4)}
                     </p>
                     {camera.description && (
-                      <p className="text-sm text-gray-600 mt-1">{camera.description}</p>
+                      <p className="text-sm text-slate-600 mt-1">{camera.description}</p>
                     )}
                   </div>
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${
                       camera.is_active
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
+                        ? 'bg-green-500/10 text-green-700 border border-green-200/80'
+                        : 'bg-slate-100 text-slate-500 border border-slate-200/80'
                     }`}
                   >
                     {camera.is_active ? '有効' : '無効'}

@@ -127,15 +127,15 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+    <div className="bg-white/95 backdrop-blur rounded-xl border border-slate-200/70 shadow-sm p-4">
+      <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
         <Upload className="w-5 h-5" />
         映像アップロード
       </h2>
 
       {/* 位置情報選択 */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-slate-700 mb-2">
           位置情報
         </label>
         
@@ -149,7 +149,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
               onChange={() => setUseManualLocation(false)}
               className="w-4 h-4"
             />
-            <label htmlFor="useCamera" className="text-sm flex items-center gap-1">
+            <label htmlFor="useCamera" className="text-sm flex items-center gap-1 text-slate-700">
               <Camera className="w-4 h-4" />
               登録済みカメラ
             </label>
@@ -159,7 +159,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
             <select
               value={selectedCameraId || ''}
               onChange={(e) => setSelectedCameraId(e.target.value ? parseInt(e.target.value) : null)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm bg-slate-50/60 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
             >
               <option value="">カメラを選択...</option>
               {cameras.map((camera) => (
@@ -179,7 +179,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
               onChange={() => setUseManualLocation(true)}
               className="w-4 h-4"
             />
-            <label htmlFor="useManual" className="text-sm flex items-center gap-1">
+            <label htmlFor="useManual" className="text-sm flex items-center gap-1 text-slate-700">
               <MapPin className="w-4 h-4" />
               位置を手動入力
             </label>
@@ -192,14 +192,14 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
                 placeholder="緯度 (例: 35.6812)"
                 value={manualLocation.latitude}
                 onChange={(e) => setManualLocation({ ...manualLocation, latitude: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-slate-200 rounded-md text-sm bg-slate-50/60 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
               />
               <input
                 type="text"
                 placeholder="経度 (例: 139.7671)"
                 value={manualLocation.longitude}
                 onChange={(e) => setManualLocation({ ...manualLocation, longitude: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-slate-200 rounded-md text-sm bg-slate-50/60 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
               />
             </div>
           )}
@@ -208,7 +208,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
 
       {/* フレーム間隔 */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-slate-700 mb-1">
           フレーム抽出間隔（秒）
         </label>
         <input
@@ -217,7 +217,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
           max="60"
           value={frameInterval}
           onChange={(e) => setFrameInterval(parseInt(e.target.value) || 5)}
-          className="w-24 px-3 py-2 border border-gray-300 rounded-md text-sm"
+          className="w-24 px-3 py-2 border border-slate-200 rounded-md text-sm bg-slate-50/60 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
         />
       </div>
 
@@ -225,8 +225,8 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
       <div
         {...getRootProps()}
         className={`
-          border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-          ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+          border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors
+          ${isDragActive ? 'border-amber-400 bg-amber-50/60' : 'border-slate-200 hover:border-slate-300 bg-slate-50/40'}
           ${uploading || uploadStatus === 'processing' ? 'opacity-50 cursor-not-allowed' : ''}
         `}
       >
@@ -235,12 +235,12 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
         {uploading ? (
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <p className="text-sm text-gray-600">アップロード中...</p>
+            <p className="text-sm text-slate-600">アップロード中...</p>
           </div>
         ) : uploadStatus === 'processing' ? (
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="w-8 h-8 animate-spin text-orange-600" />
-            <p className="text-sm text-gray-600">熊を検出中...</p>
+            <p className="text-sm text-slate-600">熊を検出中...</p>
           </div>
         ) : uploadStatus === 'completed' ? (
           <div className="flex flex-col items-center gap-2">
@@ -248,7 +248,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
             <p className="text-sm text-green-600">処理完了！</p>
             <button
               onClick={(e) => { e.stopPropagation(); resetUpload(); }}
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs text-amber-700 hover:underline"
             >
               新しいファイルをアップロード
             </button>
@@ -259,18 +259,18 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
             <p className="text-sm text-red-600">処理に失敗しました</p>
             <button
               onClick={(e) => { e.stopPropagation(); resetUpload(); }}
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs text-amber-700 hover:underline"
             >
               再試行
             </button>
           </div>
         ) : (
           <>
-            <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-            <p className="text-sm text-gray-600">
+            <Upload className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+            <p className="text-sm text-slate-600">
               {isDragActive ? 'ドロップしてアップロード' : 'クリックまたはドラッグ＆ドロップ'}
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-slate-400 mt-1">
               対応形式: MP4, MOV, AVI, JPG, PNG
             </p>
           </>
@@ -279,7 +279,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
 
       {/* エラー表示 */}
       {error && (
-        <div className="mt-3 p-3 bg-red-50 text-red-700 rounded-md text-sm flex items-center gap-2">
+        <div className="mt-3 p-3 bg-red-500/10 text-red-700 rounded-md text-sm border border-red-200/80 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
           <button onClick={() => setError(null)} className="ml-auto">
