@@ -21,7 +21,7 @@ const NEARBY_ZOOM = 12;
 const NEARBY_RADIUS_KM = 20;
 
 type DisplayMode = 'national' | 'nearby';
-type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'manual';
+type LocationStatus = 'idle' | 'requesting' | 'granted' | 'manual';
 type LatLng = { lat: number; lng: number };
 
 interface MapViewProps {
@@ -118,13 +118,17 @@ const Legend: React.FC = () => (
   </div>
 );
 
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
 const getBoundsFromCenter = (center: LatLng, radiusKm: number): string => {
   const deltaLat = radiusKm / 111;
-  const deltaLng = radiusKm / (111 * Math.cos((center.lat * Math.PI) / 180));
-  const swLat = center.lat - deltaLat;
-  const swLng = center.lng - deltaLng;
-  const neLat = center.lat + deltaLat;
-  const neLng = center.lng + deltaLng;
+  const cosLat = Math.cos((center.lat * Math.PI) / 180);
+  const safeCosLat = Math.max(Math.abs(cosLat), 0.000001);
+  const deltaLng = radiusKm / (111 * safeCosLat);
+  const swLat = clamp(center.lat - deltaLat, -90, 90);
+  const swLng = clamp(center.lng - deltaLng, -180, 180);
+  const neLat = clamp(center.lat + deltaLat, -90, 90);
+  const neLng = clamp(center.lng + deltaLng, -180, 180);
   return `${swLat},${swLng},${neLat},${neLng}`;
 };
 
@@ -274,6 +278,8 @@ export const MapView: React.FC<MapViewProps> = ({
   useEffect(() => {
     if (displayMode !== 'nearby') {
       setLocationStatus('idle');
+      setCurrentLocation(null);
+      setManualLocation(null);
       return;
     }
     if (!navigator.geolocation) {
