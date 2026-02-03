@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl } from 'react-leaflet';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import { getSightings, getFullImageUrl } from '@/shared/api';
 import type { Sighting } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
@@ -11,6 +11,12 @@ import { ImageModal } from '@/shared/ui';
 // 東京周辺をデフォルト中心に
 const DEFAULT_CENTER: [number, number] = [35.6812, 139.7671];
 const DEFAULT_ZOOM = 10;
+const NEARBY_ZOOM = 12;
+const NEARBY_RADIUS_KM = 20;
+
+type DisplayMode = 'national' | 'nearby';
+type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'manual';
+type LatLng = { lat: number; lng: number };
 
 interface MapViewProps {
   onSightingSelect?: (sighting: Sighting) => void;
@@ -106,6 +112,16 @@ const Legend: React.FC = () => (
   </div>
 );
 
+const getBoundsFromCenter = (center: LatLng, radiusKm: number): string => {
+  const deltaLat = radiusKm / 111;
+  const deltaLng = radiusKm / (111 * Math.cos((center.lat * Math.PI) / 180));
+  const swLat = center.lat - deltaLat;
+  const swLng = center.lng - deltaLng;
+  const neLat = center.lat + deltaLat;
+  const neLng = center.lng + deltaLng;
+  return `${swLat},${swLng},${neLat},${neLng}`;
+};
+
 // メインの地図コンポーネント（内部用）
 const MapContent: React.FC<{
   sightings: Sighting[];
@@ -128,6 +144,40 @@ const MapContent: React.FC<{
   );
 };
 
+const MapController: React.FC<{
+  displayMode: DisplayMode;
+  locationStatus: LocationStatus;
+  currentLocation: LatLng | null;
+  manualLocation: LatLng | null;
+  onManualLocationSelect: (location: LatLng) => void;
+}> = ({
+  displayMode,
+  locationStatus,
+  currentLocation,
+  manualLocation,
+  onManualLocationSelect,
+}) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (displayMode !== 'nearby') return;
+    const target = currentLocation ?? manualLocation;
+    if (!target) return;
+    map.setView([target.lat, target.lng], NEARBY_ZOOM);
+  }, [displayMode, currentLocation, manualLocation, map]);
+
+  useMapEvents({
+    click: (event) => {
+      if (locationStatus !== 'manual' || displayMode !== 'nearby') return;
+      const location = { lat: event.latlng.lat, lng: event.latlng.lng };
+      onManualLocationSelect(location);
+      map.setView([location.lat, location.lng], NEARBY_ZOOM);
+    },
+  });
+
+  return null;
+};
+
 export const MapView: React.FC<MapViewProps> = ({ 
   onSightingSelect,
   refreshInterval = 30000,
@@ -137,10 +187,31 @@ export const MapView: React.FC<MapViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('national');
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
+  const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null);
+  const [manualLocation, setManualLocation] = useState<LatLng | null>(null);
 
   const fetchSightings = useCallback(async () => {
     try {
-      const response = await getSightings({ limit: 500 });
+      const bounds =
+        displayMode === 'nearby'
+          ? (() => {
+              const center = currentLocation ?? manualLocation;
+              if (!center) return null;
+              return getBoundsFromCenter(center, NEARBY_RADIUS_KM);
+            })()
+          : null;
+
+      if (displayMode === 'nearby' && !bounds) {
+        setLoading(false);
+        return;
+      }
+
+      const response = await getSightings({
+        limit: 500,
+        ...(bounds ? { bounds } : {}),
+      });
       setSightings(response.sightings);
       setError(null);
     } catch (err) {
@@ -149,7 +220,7 @@ export const MapView: React.FC<MapViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [displayMode, currentLocation, manualLocation]);
 
   // 初回ロードと定期更新
   useEffect(() => {
@@ -164,6 +235,40 @@ export const MapView: React.FC<MapViewProps> = ({
       fetchSightings();
     }
   }, [refreshTrigger, fetchSightings]);
+
+  useEffect(() => {
+    if (displayMode !== 'nearby') {
+      setLocationStatus('idle');
+      return;
+    }
+    if (!navigator.geolocation) {
+      setLocationStatus('manual');
+      return;
+    }
+    setLocationStatus('requesting');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCurrentLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setLocationStatus('granted');
+      },
+      () => {
+        setLocationStatus('manual');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000,
+      }
+    );
+  }, [displayMode]);
+
+  const selectedCenter = useMemo(
+    () => currentLocation ?? manualLocation,
+    [currentLocation, manualLocation]
+  );
 
   const handleImageClick = useCallback((url: string) => {
     setSelectedImage(url);
@@ -182,6 +287,30 @@ export const MapView: React.FC<MapViewProps> = ({
 
   return (
     <div className="relative w-full h-full">
+      <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2 bg-white/90 backdrop-blur border border-slate-200/70 shadow-lg rounded-xl px-3 py-2">
+        <div className="text-sm text-slate-700">表示:</div>
+        <button
+          onClick={() => setDisplayMode('national')}
+          className={`px-3 py-1 rounded-full text-sm transition-colors ${
+            displayMode === 'national'
+              ? 'bg-amber-600 text-white'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+          }`}
+        >
+          全国
+        </button>
+        <button
+          onClick={() => setDisplayMode('nearby')}
+          className={`px-3 py-1 rounded-full text-sm transition-colors ${
+            displayMode === 'nearby'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+          }`}
+        >
+          現在地付近
+        </button>
+      </div>
+
       <MapContainer
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
@@ -194,9 +323,22 @@ export const MapView: React.FC<MapViewProps> = ({
           onSightingSelect={onSightingSelect}
           onImageClick={handleImageClick}
         />
+        <MapController
+          displayMode={displayMode}
+          locationStatus={locationStatus}
+          currentLocation={currentLocation}
+          manualLocation={manualLocation}
+          onManualLocationSelect={setManualLocation}
+        />
       </MapContainer>
 
       <Legend />
+
+      {displayMode === 'nearby' && locationStatus === 'manual' && !selectedCenter && (
+        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-amber-500/10 text-amber-800 px-4 py-2 rounded-lg border border-amber-200/80 shadow z-[1000] text-sm">
+          位置情報が取得できません。地図をクリックして地点を指定してください。
+        </div>
+      )}
 
       {error && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-500/10 text-red-700 px-4 py-2 rounded-lg border border-red-200/80 shadow z-[1000]">
