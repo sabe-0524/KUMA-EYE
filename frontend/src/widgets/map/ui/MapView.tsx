@@ -158,6 +158,35 @@ const MapContent: React.FC<{
   );
 };
 
+const LocationMarker: React.FC<{
+  currentLocation: LatLng | null;
+  manualLocation: LatLng | null;
+}> = ({ currentLocation, manualLocation }) => {
+  const location = currentLocation ?? manualLocation;
+  if (!location) return null;
+
+  const isCurrent = Boolean(currentLocation);
+  const color = isCurrent ? '#2563eb' : '#0f766e';
+  const label = isCurrent ? '現在地' : '指定地点';
+
+  return (
+    <CircleMarker
+      center={[location.lat, location.lng]}
+      radius={8}
+      pathOptions={{
+        color,
+        fillColor: color,
+        fillOpacity: 0.95,
+        weight: 2,
+      }}
+    >
+      <Popup>
+        <div className="text-sm font-semibold">{label}</div>
+      </Popup>
+    </CircleMarker>
+  );
+};
+
 const MapController: React.FC<{
   displayMode: DisplayMode;
   locationStatus: LocationStatus;
@@ -339,6 +368,10 @@ export const MapView: React.FC<MapViewProps> = ({
           sightings={sightings}
           onSightingSelect={onSightingSelect}
           onImageClick={handleImageClick}
+        />
+        <LocationMarker
+          currentLocation={currentLocation}
+          manualLocation={manualLocation}
         />
         <MapController
           displayMode={displayMode}
