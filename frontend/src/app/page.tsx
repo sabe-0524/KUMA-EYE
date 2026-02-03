@@ -8,7 +8,7 @@ import { CameraRegisterPanel } from '@/features/camera-register';
 import { AlertPanel } from '@/widgets/alert-panel';
 import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
-import type { Alert, Sighting } from '@/shared/types';
+import type { Alert, Sighting, TimeRange } from '@/shared/types';
 
 // SSRを無効化してMapViewを読み込む（Leafletはクライアントサイドのみ）
 const MapView = dynamic(
@@ -30,6 +30,7 @@ export default function HomePage() {
   const router = useRouter();
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [timeRange, setTimeRange] = useState<TimeRange>('week');
 
   // 未認証の場合はログインページにリダイレクト
   useEffect(() => {
@@ -103,6 +104,27 @@ export default function HomePage() {
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-white/10 border border-white/20 rounded-lg">
               <span className="text-sm">{user.displayName || user.email}</span>
             </div>
+            <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-lg p-1">
+              {([
+                { value: 'day', label: '1日' },
+                { value: 'week', label: '1週間' },
+                { value: 'month', label: '1ヶ月' },
+              ] as const).map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setTimeRange(option.value)}
+                  className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                    timeRange === option.value
+                      ? 'bg-white text-amber-700'
+                      : 'text-white/80 hover:bg-white/10'
+                  }`}
+                  aria-pressed={timeRange === option.value}
+                  title={`${option.label}のデータを表示`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
             <button
               onClick={refreshMap}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -155,6 +177,7 @@ export default function HomePage() {
           <MapView
             onSightingSelect={handleSightingClick}
             refreshTrigger={refreshTrigger}
+            timeRange={timeRange}
           />
         </div>
 
@@ -199,7 +222,7 @@ export default function HomePage() {
                   </div>
                 )}
                 {activePanel === 'alerts' && (
-                  <AlertPanel onAlertClick={handleAlertClick} />
+                  <AlertPanel onAlertClick={handleAlertClick} timeRange={timeRange} />
                 )}
               </div>
             </div>

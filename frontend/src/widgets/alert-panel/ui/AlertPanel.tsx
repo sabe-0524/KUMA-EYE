@@ -1,21 +1,23 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Bell, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { Bell, CheckCircle, AlertTriangle } from 'lucide-react';
 import { getUnacknowledgedAlerts, acknowledgeAlert, getAlertCount, getFullImageUrl } from '@/shared/api';
-import type { Alert, AlertCount } from '@/shared/types';
+import type { Alert, AlertCount, TimeRange } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis, alertLevelColors } from '@/shared/types';
-import { formatDateTime, getRelativeTime } from '@/shared/lib/utils';
+import { getRelativeTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
 
 interface AlertPanelProps {
   refreshInterval?: number;
   onAlertClick?: (alert: Alert) => void;
+  timeRange?: TimeRange;
 }
 
 export const AlertPanel: React.FC<AlertPanelProps> = ({
   refreshInterval = 10000,
   onAlertClick,
+  timeRange,
 }) => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [alertCount, setAlertCount] = useState<AlertCount>({ unacknowledged: 0, critical: 0 });
@@ -24,9 +26,26 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
 
   const fetchAlerts = async () => {
     try {
+      const now = new Date();
+      let startDate: Date | null = null;
+
+      if (timeRange === 'day') {
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      } else if (timeRange === 'week') {
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (timeRange === 'month') {
+        startDate = new Date(now);
+        startDate.setMonth(startDate.getMonth() - 1);
+      }
+
+      const dateParams = {
+        start_date: startDate ? startDate.toISOString() : undefined,
+        end_date: startDate ? now.toISOString() : undefined,
+      };
+
       const [alertsResponse, countResponse] = await Promise.all([
-        getUnacknowledgedAlerts(20),
-        getAlertCount(),
+        getUnacknowledgedAlerts({ limit: 20, ...dateParams }),
+        getAlertCount(dateParams),
       ]);
       setAlerts(alertsResponse.alerts);
       setAlertCount(countResponse);
@@ -41,7 +60,7 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
     fetchAlerts();
     const interval = setInterval(fetchAlerts, refreshInterval);
     return () => clearInterval(interval);
-  }, [refreshInterval]);
+  }, [refreshInterval, timeRange]);
 
   const handleAcknowledge = async (alertId: number, e: React.MouseEvent) => {
     e.stopPropagation();

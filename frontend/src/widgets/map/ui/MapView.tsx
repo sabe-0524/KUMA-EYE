@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl } from 'react-leaflet';
 import type { LatLngBoundsExpression } from 'leaflet';
 import { getSightings, getFullImageUrl } from '@/shared/api';
-import type { Sighting } from '@/shared/types';
+import type { Sighting, TimeRange } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
 import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
@@ -22,6 +22,7 @@ interface MapViewProps {
   onSightingSelect?: (sighting: Sighting) => void;
   refreshInterval?: number;
   refreshTrigger?: number;
+  timeRange?: TimeRange;
 }
 
 // マーカーを表示するサブコンポーネント
@@ -137,7 +138,8 @@ const MapContent: React.FC<{
 export const MapView: React.FC<MapViewProps> = ({ 
   onSightingSelect,
   refreshInterval = 30000,
-  refreshTrigger = 0
+  refreshTrigger = 0,
+  timeRange
 }) => {
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,7 +148,23 @@ export const MapView: React.FC<MapViewProps> = ({
 
   const fetchSightings = useCallback(async () => {
     try {
-      const response = await getSightings({ limit: 500 });
+      const now = new Date();
+      let startDate: Date | null = null;
+
+      if (timeRange === 'day') {
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      } else if (timeRange === 'week') {
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (timeRange === 'month') {
+        startDate = new Date(now);
+        startDate.setMonth(startDate.getMonth() - 1);
+      }
+
+      const response = await getSightings({
+        limit: 500,
+        start_date: startDate ? startDate.toISOString() : undefined,
+        end_date: startDate ? now.toISOString() : undefined,
+      });
       setSightings(response.sightings);
       setError(null);
     } catch (err) {
@@ -155,7 +173,7 @@ export const MapView: React.FC<MapViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [timeRange]);
 
   // 初回ロードと定期更新
   useEffect(() => {

@@ -180,15 +180,20 @@ export const getAlerts = async (params?: {
   return response.data;
 };
 
-export const getUnacknowledgedAlerts = async (limit: number = 50): Promise<AlertListResponse> => {
-  const response = await apiClient.get<AlertListResponse>('/alerts/unacknowledged', {
-    params: { limit },
-  });
+export const getUnacknowledgedAlerts = async (params?: {
+  limit?: number;
+  start_date?: string;
+  end_date?: string;
+}): Promise<AlertListResponse> => {
+  const response = await apiClient.get<AlertListResponse>('/alerts/unacknowledged', { params });
   return response.data;
 };
 
-export const getAlertCount = async (): Promise<AlertCount> => {
-  const response = await apiClient.get<AlertCount>('/alerts/count');
+export const getAlertCount = async (params?: {
+  start_date?: string;
+  end_date?: string;
+}): Promise<AlertCount> => {
+  const response = await apiClient.get<AlertCount>('/alerts/count', { params });
   return response.data;
 };
 

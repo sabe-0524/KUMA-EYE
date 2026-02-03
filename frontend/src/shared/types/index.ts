@@ -3,6 +3,7 @@
 export type AlertLevel = 'critical' | 'warning' | 'caution' | 'low';
 export type UploadStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type FileType = 'video' | 'image';
+export type TimeRange = 'day' | 'week' | 'month';
 
 // カメラ
 export interface Camera {

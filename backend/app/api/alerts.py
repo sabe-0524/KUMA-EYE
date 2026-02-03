@@ -38,6 +38,8 @@ def get_image_url(image_path: Optional[str]) -> Optional[str]:
 def list_alerts(
     acknowledged: Optional[bool] = Query(None, description="確認済みフィルタ"),
     alert_level: Optional[AlertLevel] = Query(None, description="警報レベル"),
+    start_date: Optional[datetime] = Query(None, description="開始日時"),
+    end_date: Optional[datetime] = Query(None, description="終了日時"),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
@@ -54,6 +56,10 @@ def list_alerts(
         query = query.filter(Alert.acknowledged == acknowledged)
     if alert_level:
         query = query.filter(Alert.alert_level == alert_level.value)
+    if start_date:
+        query = query.filter(Alert.notified_at >= start_date)
+    if end_date:
+        query = query.filter(Alert.notified_at <= end_date)
     
     # 総数取得
     total = query.count()
@@ -108,6 +114,8 @@ def list_alerts(
 @router.get("/unacknowledged", response_model=AlertListResponse)
 def get_unacknowledged_alerts(
     limit: int = Query(50, ge=1, le=200),
+    start_date: Optional[datetime] = Query(None, description="開始日時"),
+    end_date: Optional[datetime] = Query(None, description="終了日時"),
     db: Session = Depends(get_db)
 ):
     """
@@ -116,6 +124,11 @@ def get_unacknowledged_alerts(
     query = db.query(Alert).options(
         joinedload(Alert.sighting).joinedload(Sighting.upload).joinedload(Upload.camera)
     ).filter(Alert.acknowledged == False)
+
+    if start_date:
+        query = query.filter(Alert.notified_at >= start_date)
+    if end_date:
+        query = query.filter(Alert.notified_at <= end_date)
     
     total = query.count()
     
@@ -166,15 +179,22 @@ def get_unacknowledged_alerts(
 
 
 @router.get("/count")
-def get_alert_count(db: Session = Depends(get_db)):
+def get_alert_count(
+    start_date: Optional[datetime] = Query(None, description="開始日時"),
+    end_date: Optional[datetime] = Query(None, description="終了日時"),
+    db: Session = Depends(get_db)
+):
     """
     警報数を取得（バッジ表示用）
     """
-    unacknowledged = db.query(Alert).filter(Alert.acknowledged == False).count()
-    critical = db.query(Alert).filter(
-        Alert.acknowledged == False,
-        Alert.alert_level == "critical"
-    ).count()
+    base_query = db.query(Alert).filter(Alert.acknowledged == False)
+    if start_date:
+        base_query = base_query.filter(Alert.notified_at >= start_date)
+    if end_date:
+        base_query = base_query.filter(Alert.notified_at <= end_date)
+
+    unacknowledged = base_query.count()
+    critical = base_query.filter(Alert.alert_level == "critical").count()
     
     return {
         "unacknowledged": unacknowledged,
