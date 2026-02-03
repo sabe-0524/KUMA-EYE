@@ -111,3 +111,7 @@ npm-debug.log*
 
 # Database
 *.sql.backup
+
+# PID files
+.backend.pid
+.frontend.pid
