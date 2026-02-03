@@ -105,7 +105,7 @@ const Legend: React.FC = () => (
   <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur rounded-xl border border-slate-200/70 shadow-lg p-3 z-[1000]">
     <h4 className="font-semibold text-sm text-slate-900 mb-2">警報レベル</h4>
     <div className="space-y-1">
-      {(['critical', 'warning', 'caution', 'low'] as const).map((level) => (
+      {(['critical', 'warning', 'caution'] as const).map((level) => (
         <div key={level} className="flex items-center gap-2 text-sm">
           <span
             className="w-3 h-3 rounded-full"
@@ -247,7 +247,7 @@ export const MapView: React.FC<MapViewProps> = ({
         limit: 500,
         ...(bounds ? { bounds } : {}),
       });
-      setSightings(response.sightings);
+      setSightings(response.sightings.filter((sighting) => sighting.alert_level !== 'low'));
       setError(null);
     } catch (err) {
       console.error('Failed to fetch sightings:', err);
