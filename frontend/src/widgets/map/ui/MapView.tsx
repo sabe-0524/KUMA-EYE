@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl } from 'react-leaflet';
+import type { LatLngBoundsExpression } from 'leaflet';
 import { getSightings, getFullImageUrl } from '@/shared/api';
 import type { Sighting } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
@@ -11,6 +12,11 @@ import { ImageModal } from '@/shared/ui';
 // 東京周辺をデフォルト中心に
 const DEFAULT_CENTER: [number, number] = [35.6812, 139.7671];
 const DEFAULT_ZOOM = 10;
+const JAPAN_BOUNDS: LatLngBoundsExpression = [
+  [20.4, 122.7],
+  [45.7, 154.0],
+];
+const MIN_ZOOM_JAPAN = 4;
 
 interface MapViewProps {
   onSightingSelect?: (sighting: Sighting) => void;
@@ -185,6 +191,9 @@ export const MapView: React.FC<MapViewProps> = ({
       <MapContainer
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
+        minZoom={MIN_ZOOM_JAPAN}
+        maxBounds={JAPAN_BOUNDS}
+        maxBoundsViscosity={1.0}
         className="w-full h-full"
         zoomControl={false}
         scrollWheelZoom={true}
