@@ -13,10 +13,10 @@ import { ImageModal } from '@/shared/ui';
 const DEFAULT_CENTER: [number, number] = [35.6812, 139.7671];
 const DEFAULT_ZOOM = 10;
 const JAPAN_BOUNDS: LatLngBoundsExpression = [
-  [20.4, 122.7],
-  [45.7, 154.0],
+  [24.0, 124.5],
+  [45.5, 146.5],
 ];
-const MIN_ZOOM_JAPAN = 4;
+const MIN_ZOOM_JAPAN = 5;
 
 interface MapViewProps {
   onSightingSelect?: (sighting: Sighting) => void;
