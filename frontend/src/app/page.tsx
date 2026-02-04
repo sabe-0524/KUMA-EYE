@@ -106,6 +106,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-lg p-1">
               {([
+                { value: 'all', label: 'すべて' },
                 { value: 'day', label: '1日' },
                 { value: 'week', label: '1週間' },
                 { value: 'month', label: '1ヶ月' },

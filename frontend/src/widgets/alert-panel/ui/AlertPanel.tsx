@@ -17,7 +17,7 @@ interface AlertPanelProps {
 export const AlertPanel: React.FC<AlertPanelProps> = ({
   refreshInterval = 10000,
   onAlertClick,
-  timeRange = 'all',
+  timeRange = 'week',
 }) => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [alertCount, setAlertCount] = useState<AlertCount>({ unacknowledged: 0, critical: 0 });

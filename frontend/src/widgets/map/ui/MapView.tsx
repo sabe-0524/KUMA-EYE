@@ -230,7 +230,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onSightingSelect,
   refreshInterval = 30000,
   refreshTrigger = 0,
-  timeRange = 'all'
+  timeRange = 'week'
 }) => {
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [loading, setLoading] = useState(true);
