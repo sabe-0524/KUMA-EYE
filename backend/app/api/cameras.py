@@ -24,7 +24,8 @@ router = APIRouter(prefix="/cameras", tags=["cameras"])
 def create_camera(
     camera: CameraCreate, 
     db: Session = Depends(get_db),
-    current_user: FirebaseUser = Depends(get_current_user)
+    # NOTE: 一時的に認証を無効化（実装は残す）
+    # current_user: FirebaseUser = Depends(get_current_user)
 ):
     """
     カメラを登録（要認証）
