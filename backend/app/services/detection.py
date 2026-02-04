@@ -25,7 +25,7 @@ class BearDetectionService:
     def __init__(self, model_path: Optional[str] = None):
         """
         Args:
-            model_path: YOLOモデルのパス。Noneの場合はyolov8n.ptを使用
+            model_path: YOLOモデルのパス。未指定の場合はsettings.MODEL_PATHを使用
         """
         self.model_path = model_path or settings.MODEL_PATH
         self.confidence_threshold = settings.DETECTION_CONFIDENCE_THRESHOLD
@@ -37,14 +37,12 @@ class BearDetectionService:
         try:
             from ultralytics import YOLO
             
-            if os.path.exists(self.model_path):
-                # カスタムモデルを使用
-                self.model = YOLO(self.model_path)
-                print(f"Loaded custom model from: {self.model_path}")
-            else:
-                # プリトレーニングモデルを使用（COCOにbearクラスあり）
-                self.model = YOLO("yolov8n.pt")
-                print("Loaded pretrained YOLOv8n model (COCO)")
+            if not os.path.exists(self.model_path):
+                raise FileNotFoundError(f"Model not found: {self.model_path}")
+
+            # カスタムモデルを使用
+            self.model = YOLO(self.model_path)
+            print(f"Loaded custom model from: {self.model_path}")
         except Exception as e:
             print(f"Error loading YOLO model: {e}")
             self.model = None
