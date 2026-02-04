@@ -55,6 +55,7 @@ coverage.xml
 .env.local
 .env.production
 .venv
+env-vars.yaml
 env/
 venv/
 ENV/
@@ -106,8 +107,16 @@ frontend/node_modules/
 *.log
 npm-debug.log*
 
+# Runtime PID files
+.backend.pid
+.frontend.pid
+
 # Docker
 .docker/
 
 # Database
 *.sql.backup
+
+# PID files
+.backend.pid
+.frontend.pid
