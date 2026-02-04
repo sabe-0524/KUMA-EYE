@@ -5,7 +5,7 @@ import { Bell, CheckCircle, AlertTriangle } from 'lucide-react';
 import { getUnacknowledgedAlerts, acknowledgeAlert, getAlertCount, getFullImageUrl } from '@/shared/api';
 import type { Alert, AlertCount, TimeRange } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis, alertLevelColors } from '@/shared/types';
-import { getRelativeTime } from '@/shared/lib/utils';
+import { getRelativeTime, getTimeRangeDates } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
 
 interface AlertPanelProps {
@@ -17,7 +17,7 @@ interface AlertPanelProps {
 export const AlertPanel: React.FC<AlertPanelProps> = ({
   refreshInterval = 10000,
   onAlertClick,
-  timeRange,
+  timeRange = 'all',
 }) => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [alertCount, setAlertCount] = useState<AlertCount>({ unacknowledged: 0, critical: 0 });
@@ -26,21 +26,11 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
 
   const fetchAlerts = async () => {
     try {
-      const now = new Date();
-      let startDate: Date | null = null;
-
-      if (timeRange === 'day') {
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      } else if (timeRange === 'week') {
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      } else if (timeRange === 'month') {
-        startDate = new Date(now);
-        startDate.setMonth(startDate.getMonth() - 1);
-      }
+      const { startDate, endDate } = getTimeRangeDates(timeRange);
 
       const dateParams = {
         start_date: startDate ? startDate.toISOString() : undefined,
-        end_date: startDate ? now.toISOString() : undefined,
+        end_date: endDate ? endDate.toISOString() : undefined,
       };
 
       const [alertsResponse, countResponse] = await Promise.all([

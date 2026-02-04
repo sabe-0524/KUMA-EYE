@@ -14,7 +14,7 @@ import type { LatLngBoundsExpression } from 'leaflet';
 import { getSightings, getFullImageUrl } from '@/shared/api';
 import type { Sighting, TimeRange } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
-import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime } from '@/shared/lib/utils';
+import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime, getTimeRangeDates } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
 
 // 東京周辺をデフォルト中心に
@@ -230,7 +230,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onSightingSelect,
   refreshInterval = 30000,
   refreshTrigger = 0,
-  timeRange
+  timeRange = 'all'
 }) => {
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [loading, setLoading] = useState(true);
@@ -243,17 +243,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   const fetchSightings = useCallback(async () => {
     try {
-      const now = new Date();
-      let startDate: Date | null = null;
-
-      if (timeRange === 'day') {
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      } else if (timeRange === 'week') {
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      } else if (timeRange === 'month') {
-        startDate = new Date(now);
-        startDate.setMonth(startDate.getMonth() - 1);
-      }
+      const { startDate, endDate } = getTimeRangeDates(timeRange);
 
       const bounds =
         displayMode === 'nearby'
@@ -272,7 +262,7 @@ export const MapView: React.FC<MapViewProps> = ({
       const response = await getSightings({
         limit: 500,
         start_date: startDate ? startDate.toISOString() : undefined,
-        end_date: startDate ? now.toISOString() : undefined,
+        end_date: endDate ? endDate.toISOString() : undefined,
         ...(bounds ? { bounds } : {}),
       });
       setSightings(response.sightings.filter((sighting) => sighting.alert_level !== 'low'));

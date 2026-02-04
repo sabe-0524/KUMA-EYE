@@ -1,4 +1,4 @@
-import type { AlertLevel } from '@/shared/types';
+import type { AlertLevel, TimeRange } from '@/shared/types';
 import { alertLevelColors } from '@/shared/types';
 
 /**
@@ -54,4 +54,26 @@ export const getRelativeTime = (dateString: string): string => {
   if (diffDays < 7) return `${diffDays}日前`;
   
   return formatDateTime(dateString);
+};
+
+export const getTimeRangeDates = (
+  timeRange: TimeRange,
+  now: Date = new Date()
+): { startDate: Date | null; endDate: Date | null } => {
+  let startDate: Date | null = null;
+  let endDate: Date | null = null;
+
+  if (timeRange === 'day') {
+    startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    endDate = now;
+  } else if (timeRange === 'week') {
+    startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    endDate = now;
+  } else if (timeRange === 'month') {
+    startDate = new Date(now);
+    startDate.setMonth(startDate.getMonth() - 1);
+    endDate = now;
+  }
+
+  return { startDate, endDate };
 };

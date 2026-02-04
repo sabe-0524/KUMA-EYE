@@ -110,6 +110,7 @@ npm-debug.log*
 # Runtime PID files
 .backend.pid
 .frontend.pid
+*.pid
 
 # Docker
 .docker/
