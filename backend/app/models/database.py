@@ -124,7 +124,7 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     firebase_uid = Column(String(255), nullable=False, unique=True)
-    email = Column(String(255), nullable=False)
+    email = Column(String(255))
     display_name = Column(String(255))
     email_opt_in = Column(Boolean, default=False)
     location = Column(Geometry(geometry_type='POINT', srid=4326))

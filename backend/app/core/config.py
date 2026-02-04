@@ -31,11 +31,11 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_KEY: str = ""  # Path to service account key (optional for Cloud Run)
 
     # Email (SMTP)
-    SMTP_HOST: str = ""
+    SMTP_HOST: Optional[str] = None
     SMTP_PORT: int = 587
-    SMTP_USERNAME: str = ""
-    SMTP_PASSWORD: str = ""
-    SMTP_FROM: str = ""
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM: Optional[str] = None
     SMTP_USE_TLS: bool = True
 
     # Notifications

@@ -18,28 +18,33 @@ class EmailService:
         self.from_address = settings.SMTP_FROM
         self.use_tls = settings.SMTP_USE_TLS
 
-    def send_email(self, to_address: str, subject: str, body: str) -> None:
-        if not self.host or not self.from_address:
-            raise RuntimeError("SMTP settings are not configured")
-
+    def _build_message(self, to_address: str, subject: str, body: str) -> EmailMessage:
         message = EmailMessage()
         message["From"] = self.from_address
         message["To"] = to_address
         message["Subject"] = subject
         message.set_content(body)
+        return message
 
+    def connect(self) -> smtplib.SMTP:
+        if not self.host or not self.from_address:
+            raise RuntimeError("SMTP settings are not configured")
+
+        server = smtplib.SMTP(self.host, self.port, timeout=10)
         if self.use_tls:
             context = ssl.create_default_context()
-            with smtplib.SMTP(self.host, self.port, timeout=10) as server:
-                server.starttls(context=context)
-                if self.username and self.password:
-                    server.login(self.username, self.password)
-                server.send_message(message)
-        else:
-            with smtplib.SMTP(self.host, self.port, timeout=10) as server:
-                if self.username and self.password:
-                    server.login(self.username, self.password)
-                server.send_message(message)
+            server.starttls(context=context)
+        if self.username and self.password:
+            server.login(self.username, self.password)
+        return server
+
+    def send_with_server(self, server: smtplib.SMTP, to_address: str, subject: str, body: str) -> None:
+        message = self._build_message(to_address, subject, body)
+        server.send_message(message)
+
+    def send_email(self, to_address: str, subject: str, body: str) -> None:
+        with self.connect() as server:
+            self.send_with_server(server, to_address, subject, body)
 
 
 _email_service: Optional[EmailService] = None

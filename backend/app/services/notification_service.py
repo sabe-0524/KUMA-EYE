@@ -2,7 +2,7 @@
 Notification Service (Email)
 """
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import List
 
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, cast
@@ -31,7 +31,7 @@ def get_or_create_user(db: Session, firebase_user: FirebaseUser) -> User:
 
     user = User(
         firebase_uid=firebase_user.uid,
-        email=firebase_user.email or "",
+        email=firebase_user.email or None,
         display_name=firebase_user.name,
         email_opt_in=False,
     )
@@ -102,6 +102,7 @@ def notify_for_alert(db: Session, alert_id: int) -> int:
     base_query = db.query(User).filter(
         User.email_opt_in == True,
         User.email.isnot(None),
+        User.email != "",
         User.location.isnot(None),
         User.location_updated_at.isnot(None),
         User.location_updated_at >= cutoff,
@@ -136,6 +137,14 @@ def notify_for_alert(db: Session, alert_id: int) -> int:
     body = _alert_body(alert, sighting)
 
     sent_count = 0
+    server = None
+    connect_error = None
+
+    try:
+        server = email_service.connect()
+    except Exception as exc:
+        connect_error = exc
+
     for user in recipients:
         notification = AlertNotification(
             alert_id=alert.id,
@@ -147,16 +156,23 @@ def notify_for_alert(db: Session, alert_id: int) -> int:
         db.flush()
 
         try:
+            if connect_error:
+                raise connect_error
             if not user.email:
                 raise RuntimeError("User email is missing")
-            email_service.send_email(user.email, subject, body)
+            email_service.send_with_server(server, user.email, subject, body)
             notification.status = "sent"
             notification.sent_at = datetime.utcnow()
             sent_count += 1
         except Exception as exc:
             notification.status = "failed"
             notification.error_message = str(exc)
-        finally:
-            db.commit()
 
+    if server:
+        try:
+            server.quit()
+        except Exception:
+            pass
+
+    db.commit()
     return sent_count

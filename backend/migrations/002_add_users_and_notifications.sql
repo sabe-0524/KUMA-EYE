@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     firebase_uid VARCHAR(255) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
     display_name VARCHAR(255),
     email_opt_in BOOLEAN DEFAULT false,
     location GEOMETRY(Point, 4326),
@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
     longitude DECIMAL(11, 8),
     location_updated_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP
+    updated_at TIMESTAMP,
+    CHECK (email IS NULL OR email <> '')
 );
 
 -- 位置情報の空間インデックス

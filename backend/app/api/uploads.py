@@ -2,6 +2,7 @@
 Bear Detection System - Uploads API
 """
 import os
+import logging
 import shutil
 from pathlib import Path
 from datetime import datetime
@@ -26,6 +27,7 @@ from app.services.video_processor import get_video_processor
 from app.services.notification_service import notify_for_alert
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
+logger = logging.getLogger(__name__)
 
 
 def get_file_type(content_type: str) -> Optional[str]:
@@ -156,7 +158,7 @@ def process_upload(upload_id: int, frame_interval: int = 5):
                     try:
                         notify_for_alert(db, alert.id)
                     except Exception as e:
-                        print(f"Notification error for alert {alert.id}: {e}")
+                        logger.warning("Notification error for alert %s: %s", alert.id, e)
         
         else:
             # 画像処理
@@ -226,7 +228,7 @@ def process_upload(upload_id: int, frame_interval: int = 5):
                 try:
                     notify_for_alert(db, alert.id)
                 except Exception as e:
-                    print(f"Notification error for alert {alert.id}: {e}")
+                    logger.warning("Notification error for alert %s: %s", alert.id, e)
         
         # 処理完了
         upload.status = "completed"
