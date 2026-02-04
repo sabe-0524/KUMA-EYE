@@ -116,11 +116,13 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
       }
 
       let index = 0;
+      let hasSeeked = false;
       for (const time of times) {
         const targetTime = Math.min(time, duration || 0);
-        if (Math.abs(video.currentTime - targetTime) > 0.01) {
+        if (!hasSeeked || Math.abs(video.currentTime - targetTime) > 0.01) {
           video.currentTime = targetTime;
           await waitForEvent(video, 'seeked');
+          hasSeeked = true;
         }
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const blob = await new Promise<Blob>((resolve, reject) => {
@@ -167,8 +169,6 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
       }
     }
 
-    setUploading(false);
-    setClientProcessing(false);
     setError(null);
     setUploadResult(null);
     setUploadStatus(null);
