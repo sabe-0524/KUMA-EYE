@@ -28,7 +28,6 @@ class Settings(BaseSettings):
     
     # Firebase
     FIREBASE_PROJECT_ID: str = "kuma-eye"
-    FIREBASE_SERVICE_ACCOUNT_KEY: str = ""  # Path to service account key (optional for Cloud Run)
     
     # Detection Model
     MODEL_PATH: str = "./models/bear_detector.pt"
