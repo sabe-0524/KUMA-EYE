@@ -35,6 +35,9 @@
 ### 方法1: Makefileを使用（推奨）
 
 ```bash
+# 依存関係のセットアップ（初回）
+make setup
+
 # ローカル開発環境を起動（Docker不要）
 make dev
 
@@ -133,6 +136,7 @@ make seed
 
 ```bash
 # ローカル開発（Docker不要）
+make setup        # 依存関係をセットアップ
 make dev          # ローカル開発環境を起動
 make stop         # ローカル開発環境を停止
 

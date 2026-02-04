@@ -1,12 +1,13 @@
 # Bear Detection System - Makefile
 
-.PHONY: help dev dev-docker stop stop-docker clean logs seed test build
+.PHONY: help setup dev dev-docker stop stop-docker clean logs seed test build
 
 # デフォルトターゲット
 help:
 	@echo "🐻 クマ検出警報システム"
 	@echo ""
 	@echo "利用可能なコマンド:"
+	@echo "  make setup      - バックエンド/フロントエンドの依存関係をインストール"
 	@echo "  make dev        - ローカル開発環境を起動（Docker不要）"
 	@echo "  make stop       - ローカル開発環境を停止"
 	@echo "  make dev-docker - Docker開発環境を起動"
@@ -23,6 +24,15 @@ help:
 dev:
 	@chmod +x start-local.sh
 	@./start-local.sh
+
+# セットアップ（ローカル）
+setup:
+	@echo "🔧 バックエンド依存関係をインストール中..."
+	@test -d backend/venv || python3 -m venv backend/venv
+	@. backend/venv/bin/activate && pip install -r backend/requirements.txt
+	@echo "🎨 フロントエンド依存関係をインストール中..."
+	@cd frontend && npm install
+	@echo "✅ セットアップ完了"
 
 # Docker開発環境起動
 dev-docker:
