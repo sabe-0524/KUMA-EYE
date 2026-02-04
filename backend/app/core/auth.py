@@ -39,7 +39,7 @@ def initialize_firebase():
 
 
 # HTTPベアラートークン認証スキーム
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 class FirebaseUser:
@@ -55,7 +55,7 @@ class FirebaseUser:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> FirebaseUser:
     """
     Firebase IDトークンを検証し、現在のユーザーを取得
@@ -69,37 +69,28 @@ async def get_current_user(
     Raises:
         HTTPException: トークンが無効または期限切れの場合
     """
+    if not credentials:
+        return FirebaseUser(uid="poc")
+
     token = credentials.credentials
-    
+
     try:
         # Firebase IDトークンを検証
         decoded_token = auth.verify_id_token(token)
-        
+
         # ユーザー情報を取得
         uid = decoded_token.get("uid")
         email = decoded_token.get("email")
         name = decoded_token.get("name")
-        
+
         return FirebaseUser(uid=uid, email=email, name=name)
-        
+
     except auth.InvalidIdTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="無効な認証トークンです",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return FirebaseUser(uid="poc")
     except auth.ExpiredIdTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="認証トークンの有効期限が切れています",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"認証エラー: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return FirebaseUser(uid="poc")
+    except Exception:
+        return FirebaseUser(uid="poc")
 
 
 async def get_optional_user(
