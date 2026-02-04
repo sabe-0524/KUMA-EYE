@@ -273,8 +273,8 @@ class VideoProcessor:
             return []
 
         allowed = {".jpg", ".jpeg", ".png"}
-        files = [p for p in directory.rglob("*") if p.is_file() and p.suffix.lower() in allowed]
-        return sorted(files, key=lambda p: str(p))
+        files = [p for p in directory.glob("*") if p.is_file() and p.suffix.lower() in allowed]
+        return sorted(files, key=str)
 
 
 # ファクトリ関数

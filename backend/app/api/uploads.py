@@ -357,16 +357,37 @@ def process_frame_upload(upload_id: int, frames_dir: str, frame_interval: int = 
             upload.error_message = str(e)
             db.commit()
     finally:
+        try:
+            shutil.rmtree(frames_dir, ignore_errors=True)
+        except Exception:
+            pass
         db.close()
 
 
-def _validate_zip_member(name: str) -> bool:
-    if name.startswith("/") or name.startswith("\\"):
-        return False
-    parts = Path(name).parts
-    if ".." in parts:
-        return False
-    return True
+def _resolve_safe_zip_path(name: str, base_dir: Path) -> Optional[Path]:
+    """
+    ZIP内のエントリ名が安全かを検証し、展開先パスを返す
+    """
+    if not name:
+        return None
+
+    path = Path(name)
+    if path.is_absolute():
+        return None
+
+    if len(path.parts) != 1:
+        return None
+
+    base_dir = base_dir.resolve()
+    try:
+        target_path = (base_dir / path).resolve()
+    except Exception:
+        return None
+
+    if target_path == base_dir or base_dir not in target_path.parents:
+        return None
+
+    return target_path
 
 
 @router.post("", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -503,8 +524,22 @@ async def create_frame_upload(
     filename = f"{timestamp}_{zip_file.filename}"
     zip_path = upload_dir / filename
 
+    max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    total_read = 0
     with open(zip_path, "wb") as buffer:
-        shutil.copyfileobj(zip_file.file, buffer)
+        while True:
+            chunk = zip_file.file.read(1024 * 1024)
+            if not chunk:
+                break
+            total_read += len(chunk)
+            if total_read > max_bytes:
+                buffer.close()
+                zip_path.unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="ZIPファイルが大きすぎます"
+                )
+            buffer.write(chunk)
 
     file_size = os.path.getsize(zip_path)
 
@@ -528,22 +563,42 @@ async def create_frame_upload(
 
     try:
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            members = [m for m in zip_ref.namelist() if _validate_zip_member(m)]
+            members = [m for m in zip_ref.namelist() if not m.endswith("/")]
             if not members:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="ZIP内にファイルがありません"
                 )
+            total_extracted = 0
             for member in members:
-                if member.endswith("/"):
-                    continue
-                target_path = extracted_dir / member
-                target_path.parent.mkdir(parents=True, exist_ok=True)
-                with zip_ref.open(member) as source, open(target_path, "wb") as dest:
+                safe_path = _resolve_safe_zip_path(member, extracted_dir)
+                if safe_path is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="ZIP内のパスが不正です"
+                    )
+
+                info = zip_ref.getinfo(member)
+                if info.file_size > max_bytes:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail="ZIP内のファイルが大きすぎます"
+                    )
+
+                total_extracted += info.file_size
+                if total_extracted > max_bytes:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail="ZIP展開後の合計サイズが大きすぎます"
+                    )
+
+                with zip_ref.open(member) as source, open(safe_path, "wb") as dest:
                     shutil.copyfileobj(source, dest)
     except HTTPException:
+        shutil.rmtree(extracted_dir, ignore_errors=True)
         raise
     except Exception as e:
+        shutil.rmtree(extracted_dir, ignore_errors=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"ZIPの展開に失敗しました: {e}"
