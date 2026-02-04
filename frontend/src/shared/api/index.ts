@@ -13,6 +13,7 @@ import type {
   AlertCount,
   UploadResponse,
   UploadDetail,
+  NotificationSettings,
 } from '@/shared/types';
 
 // Axiosインスタンス
@@ -221,4 +222,33 @@ export const getFullImageUrl = (imageUrl?: string): string | undefined => {
   if (!imageUrl) return undefined;
   if (imageUrl.startsWith('http')) return imageUrl;
   return `${API_BASE_URL.replace('/api/v1', '')}${imageUrl}`;
+};
+
+// =============================================================================
+// 通知設定API
+// =============================================================================
+
+export const getMyNotificationSettings = async (): Promise<NotificationSettings> => {
+  const response = await apiClient.get<NotificationSettings>('/users/me');
+  return response.data;
+};
+
+export const updateMyNotificationSettings = async (
+  emailOptIn: boolean
+): Promise<NotificationSettings> => {
+  const response = await apiClient.put<NotificationSettings>('/users/me/notification-settings', {
+    email_opt_in: emailOptIn,
+  });
+  return response.data;
+};
+
+export const updateMyLocation = async (
+  latitude: number,
+  longitude: number
+): Promise<NotificationSettings> => {
+  const response = await apiClient.post<NotificationSettings>('/users/me/location', {
+    latitude,
+    longitude,
+  });
+  return response.data;
 };

@@ -23,6 +23,7 @@ from app.models.schemas import (
 )
 from app.services.detection import get_detection_service
 from app.services.video_processor import get_video_processor
+from app.services.notification_service import notify_for_alert
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
@@ -151,6 +152,11 @@ def process_upload(upload_id: int, frame_interval: int = 5):
                     
                     sighting_count += 1
                     db.commit()
+
+                    try:
+                        notify_for_alert(db, alert.id)
+                    except Exception as e:
+                        print(f"Notification error for alert {alert.id}: {e}")
         
         else:
             # 画像処理
@@ -215,6 +221,12 @@ def process_upload(upload_id: int, frame_interval: int = 5):
                 db.add(alert)
                 
                 sighting_count += 1
+                db.commit()
+
+                try:
+                    notify_for_alert(db, alert.id)
+                except Exception as e:
+                    print(f"Notification error for alert {alert.id}: {e}")
         
         # 処理完了
         upload.status = "completed"

@@ -29,6 +29,19 @@ class Settings(BaseSettings):
     # Firebase
     FIREBASE_PROJECT_ID: str = "kuma-eye"
     FIREBASE_SERVICE_ACCOUNT_KEY: str = ""  # Path to service account key (optional for Cloud Run)
+
+    # Email (SMTP)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+    SMTP_USE_TLS: bool = True
+
+    # Notifications
+    NOTIFY_RADIUS_METERS: int = 5000
+    NOTIFY_STALE_MINUTES: int = 30
+    APP_BASE_URL: str = ""
     
     # Detection Model
     MODEL_PATH: str = "./models/bear_detector.pt"

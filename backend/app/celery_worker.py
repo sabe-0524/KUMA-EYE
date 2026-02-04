@@ -11,6 +11,7 @@ from app.models.database import Upload, Sighting, Detection, Alert
 from app.models import database as models
 from app.services.detection import BearDetectionService
 from app.services.video_processor import VideoProcessor
+from app.services.notification_service import notify_for_alert
 
 # ロギング設定
 logging.basicConfig(level=logging.INFO)
@@ -181,6 +182,12 @@ def process_upload(self, upload_id: int, latitude: float, longitude: float, fram
             db.add(alert)
             
             sighting_ids.append(sighting.id)
+
+            db.commit()
+            try:
+                notify_for_alert(db, alert.id)
+            except Exception as e:
+                logger.warning(f"Notification error for alert {alert.id}: {e}")
         
         # アップロード完了
         upload.status = 'completed'

@@ -114,6 +114,16 @@ export interface AlertCount {
   critical: number;
 }
 
+// 通知設定
+export interface NotificationSettings {
+  email?: string;
+  display_name?: string;
+  email_opt_in: boolean;
+  latitude?: number;
+  longitude?: number;
+  location_updated_at?: string;
+}
+
 // 統計
 export interface SightingStatistics {
   total_sightings: number;

@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { UploadPanel } from '@/features/upload-footage';
 import { CameraRegisterPanel } from '@/features/camera-register';
+import { NotificationSettingsPanel } from '@/features/notification-settings';
 import { AlertPanel } from '@/widgets/alert-panel';
-import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut } from 'lucide-react';
+import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
 import type { Alert, Sighting } from '@/shared/types';
 
@@ -23,7 +24,7 @@ const MapView = dynamic(
   }
 );
 
-type ActivePanel = 'upload' | 'alerts' | 'camera' | null;
+type ActivePanel = 'upload' | 'alerts' | 'camera' | 'notifications' | null;
 
 export default function HomePage() {
   const { user, loading, logout } = useAuth();
@@ -138,6 +139,15 @@ export default function HomePage() {
               <Bell className="w-5 h-5" />
             </button>
             <button
+              onClick={() => togglePanel('notifications')}
+              className={`p-2 rounded-lg transition-colors ${
+                activePanel === 'notifications' ? 'bg-white/15' : 'hover:bg-white/10'
+              }`}
+              title="通知設定"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            <button
               onClick={handleLogout}
               className="p-2 hover:bg-red-500/80 rounded-lg transition-colors"
               title="ログアウト"
@@ -176,7 +186,8 @@ export default function HomePage() {
               <div className="flex items-center justify-between p-4 border-b border-slate-200/70 bg-slate-50/70">
                 <h2 className="font-semibold text-slate-900">
                   {activePanel === 'upload' ? '映像アップロード' : 
-                   activePanel === 'camera' ? 'カメラ管理' : '警報一覧'}
+                   activePanel === 'camera' ? 'カメラ管理' : 
+                   activePanel === 'notifications' ? '通知設定' : '警報一覧'}
                 </h2>
                 <button
                   onClick={() => setActivePanel(null)}
@@ -200,6 +211,11 @@ export default function HomePage() {
                 )}
                 {activePanel === 'alerts' && (
                   <AlertPanel onAlertClick={handleAlertClick} />
+                )}
+                {activePanel === 'notifications' && (
+                  <div className="p-4">
+                    <NotificationSettingsPanel />
+                  </div>
                 )}
               </div>
             </div>

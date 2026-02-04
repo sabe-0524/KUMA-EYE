@@ -218,6 +218,31 @@ class AlertAcknowledge(BaseModel):
 
 
 # =============================================================================
+# User Notification Schemas
+# =============================================================================
+
+class UserNotificationSettingsResponse(BaseModel):
+    email: Optional[str] = None
+    display_name: Optional[str] = None
+    email_opt_in: bool
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location_updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class UserNotificationSettingsUpdate(BaseModel):
+    email_opt_in: bool
+
+
+class LocationUpdateRequest(BaseModel):
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+
+
+# =============================================================================
 # Query Parameters
 # =============================================================================
 
