@@ -28,7 +28,7 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
         getUnacknowledgedAlerts(20),
         getAlertCount(),
       ]);
-      setAlerts(alertsResponse.alerts);
+      setAlerts(alertsResponse.alerts.filter((alert) => alert.alert_level !== 'low'));
       setAlertCount(countResponse);
     } catch (err) {
       console.error('Failed to fetch alerts:', err);
