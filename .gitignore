@@ -69,6 +69,9 @@ venv.bak/
 *.swo
 *~
 
+# Codex
+.codex/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
