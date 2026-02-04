@@ -258,6 +258,24 @@ class VideoProcessor:
         
         return str(output_path)
 
+    def list_frame_files(self, frames_dir: str) -> List[Path]:
+        """
+        画像フレームのファイル一覧を取得
+
+        Args:
+            frames_dir: フレームが格納されたディレクトリ
+
+        Returns:
+            List[Path]: 画像ファイルのパス一覧（名前順）
+        """
+        directory = Path(frames_dir)
+        if not directory.exists():
+            return []
+
+        allowed = {".jpg", ".jpeg", ".png"}
+        files = [p for p in directory.rglob("*") if p.is_file() and p.suffix.lower() in allowed]
+        return sorted(files, key=lambda p: str(p))
+
 
 # ファクトリ関数
 def get_video_processor(frame_interval: int = None) -> VideoProcessor:

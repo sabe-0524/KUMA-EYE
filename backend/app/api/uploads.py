@@ -4,6 +4,7 @@ Bear Detection System - Uploads API
 import os
 import logging
 import shutil
+import zipfile
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -250,6 +251,138 @@ def process_upload(upload_id: int, frame_interval: int = 5):
         db.close()
 
 
+def process_frame_upload(upload_id: int, frames_dir: str, frame_interval: int = 5):
+    """
+    フレーム画像のZIPアップロードを処理
+
+    1. フレーム画像を順に処理
+    2. 各フレームで熊検出
+    3. 検出結果をDBに保存
+    4. 警報を生成
+    """
+    from app.core.database import SessionLocal
+    from PIL import Image
+
+    db = SessionLocal()
+
+    try:
+        upload = db.query(Upload).filter(Upload.id == upload_id).first()
+        if not upload:
+            return
+
+        upload.status = "processing"
+        db.commit()
+
+        camera = None
+        if upload.camera_id:
+            camera = db.query(Camera).filter(Camera.id == upload.camera_id).first()
+
+        if camera:
+            latitude = float(camera.latitude)
+            longitude = float(camera.longitude)
+            camera_name = camera.name
+        else:
+            latitude = float(upload.latitude) if upload.latitude else 0.0
+            longitude = float(upload.longitude) if upload.longitude else 0.0
+            camera_name = None
+
+        detection_service = get_detection_service()
+        video_processor = get_video_processor(frame_interval)
+
+        frame_count = 0
+        sighting_count = 0
+
+        frame_paths = video_processor.list_frame_files(frames_dir)
+        for frame_num, frame_path in enumerate(frame_paths):
+            try:
+                pil_image = Image.open(frame_path)
+            except Exception:
+                continue
+
+            frame_count += 1
+            detections = detection_service.detect(pil_image)
+
+            if detections:
+                alert_level = detection_service.calculate_alert_level(detections)
+                max_confidence = max(d["confidence"] for d in detections)
+                bear_count = len(detections)
+
+                annotated_image = detection_service.draw_detections(pil_image, detections)
+                processed_path = video_processor.save_processed_frame(
+                    annotated_image, upload_id, frame_num
+                )
+
+                sighting = Sighting(
+                    upload_id=upload_id,
+                    location=func.ST_SetSRID(func.ST_MakePoint(longitude, latitude), 4326),
+                    latitude=latitude,
+                    longitude=longitude,
+                    detected_at=datetime.now(),
+                    confidence=max_confidence,
+                    bear_count=bear_count,
+                    alert_level=alert_level,
+                    image_path=processed_path,
+                    frame_number=frame_num
+                )
+                db.add(sighting)
+                db.flush()
+
+                for det in detections:
+                    detection = Detection(
+                        sighting_id=sighting.id,
+                        class_name=det["class_name"],
+                        confidence=det["confidence"],
+                        bbox_x=det["bbox"]["x"],
+                        bbox_y=det["bbox"]["y"],
+                        bbox_w=det["bbox"]["width"],
+                        bbox_h=det["bbox"]["height"]
+                    )
+                    db.add(detection)
+
+                alert_message = detection_service.create_alert_message(
+                    detections,
+                    alert_level,
+                    camera_name=camera_name,
+                    location=(latitude, longitude)
+                )
+                alert = Alert(
+                    sighting_id=sighting.id,
+                    alert_level=alert_level,
+                    message=alert_message
+                )
+                db.add(alert)
+
+                sighting_count += 1
+                db.commit()
+
+        upload.status = "completed"
+        upload.frame_count = frame_count
+        upload.duration_seconds = frame_count * frame_interval if frame_interval else None
+        upload.processed_at = datetime.now()
+        db.commit()
+
+        print(f"Frame upload {upload_id} processed: {frame_count} frames, {sighting_count} sightings")
+
+    except Exception as e:
+        print(f"Error processing frame upload {upload_id}: {e}")
+        upload = db.query(Upload).filter(Upload.id == upload_id).first()
+        if upload:
+            upload.status = "failed"
+            upload.error_message = str(e)
+            db.commit()
+    finally:
+        db.close()
+
+
+def _validate_zip_member(name: str) -> bool:
+    if name.startswith("/") or name.startswith("\\"):
+        return False
+    parts = Path(name).parts
+    if ".." in parts:
+        return False
+    return True
+
+
 @router.post("", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def create_upload(
     background_tasks: BackgroundTasks,
@@ -340,6 +473,110 @@ async def create_upload(
         status=UploadStatus.PROCESSING,
         message="映像の処理を開始しました",
         estimated_time_seconds=estimated_time
+    )
+
+
+@router.post("/frames", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED)
+async def create_frame_upload(
+    background_tasks: BackgroundTasks,
+    zip_file: UploadFile = File(...),
+    camera_id: Optional[int] = Form(None),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    recorded_at: Optional[datetime] = Form(None),
+    frame_interval: int = Form(5),
+    db: Session = Depends(get_db)
+):
+    """
+    フレーム画像ZIPをアップロードし、熊検出処理を開始
+    """
+    if not zip_file.filename.lower().endswith(".zip"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ZIPファイルを指定してください"
+        )
+
+    if camera_id:
+        camera = db.query(Camera).filter(Camera.id == camera_id).first()
+        if not camera:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Camera with id {camera_id} not found"
+            )
+    elif latitude is None or longitude is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either camera_id or both latitude and longitude must be provided"
+        )
+
+    storage_path = Path(settings.LOCAL_STORAGE_PATH)
+    upload_dir = storage_path / "frames"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{timestamp}_{zip_file.filename}"
+    zip_path = upload_dir / filename
+
+    with open(zip_path, "wb") as buffer:
+        shutil.copyfileobj(zip_file.file, buffer)
+
+    file_size = os.path.getsize(zip_path)
+
+    db_upload = Upload(
+        camera_id=camera_id,
+        file_path=str(zip_path),
+        file_type="image",
+        file_size=file_size,
+        recorded_at=recorded_at,
+        status="pending",
+        latitude=latitude,
+        longitude=longitude
+    )
+
+    db.add(db_upload)
+    db.commit()
+    db.refresh(db_upload)
+
+    extracted_dir = upload_dir / str(db_upload.id)
+    extracted_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            members = [m for m in zip_ref.namelist() if _validate_zip_member(m)]
+            if not members:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="ZIP内にファイルがありません"
+                )
+            for member in members:
+                if member.endswith("/"):
+                    continue
+                target_path = extracted_dir / member
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                with zip_ref.open(member) as source, open(target_path, "wb") as dest:
+                    shutil.copyfileobj(source, dest)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"ZIPの展開に失敗しました: {e}"
+        )
+
+    image_files = get_video_processor(frame_interval).list_frame_files(str(extracted_dir))
+    if not image_files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ZIP内に対応画像がありません"
+        )
+
+    background_tasks.add_task(process_frame_upload, db_upload.id, str(extracted_dir), frame_interval)
+
+    return UploadResponse(
+        upload_id=db_upload.id,
+        status=UploadStatus.PROCESSING,
+        message="フレーム画像の処理を開始しました",
+        estimated_time_seconds=None
     )
 
 

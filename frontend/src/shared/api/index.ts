@@ -119,6 +119,39 @@ export const uploadFootage = async (
   return response.data;
 };
 
+export const uploadFramesZip = async (
+  zipFile: File,
+  options: {
+    camera_id?: number;
+    latitude?: number;
+    longitude?: number;
+    frame_interval?: number;
+  }
+): Promise<UploadResponse> => {
+  const formData = new FormData();
+  formData.append('zip_file', zipFile);
+
+  if (options.camera_id) {
+    formData.append('camera_id', options.camera_id.toString());
+  }
+  if (options.latitude !== undefined) {
+    formData.append('latitude', options.latitude.toString());
+  }
+  if (options.longitude !== undefined) {
+    formData.append('longitude', options.longitude.toString());
+  }
+  if (options.frame_interval) {
+    formData.append('frame_interval', options.frame_interval.toString());
+  }
+
+  const response = await apiClient.post<UploadResponse>('/uploads/frames', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
 export const getUpload = async (id: number): Promise<UploadDetail> => {
   const response = await apiClient.get<UploadDetail>(`/uploads/${id}`);
   return response.data;
