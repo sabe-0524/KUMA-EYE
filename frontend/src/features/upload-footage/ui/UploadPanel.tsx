@@ -3,7 +3,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Camera, MapPin, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react';
-import { uploadFootage, getCameras, getUpload } from '@/shared/api';
+import JSZip from 'jszip';
+import { uploadFootage, uploadFramesZip, getCameras, getUpload } from '@/shared/api';
 import type { Camera as CameraType, UploadResponse, UploadStatus } from '@/shared/types';
 
 interface UploadPanelProps {
@@ -18,6 +19,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
   const [frameInterval, setFrameInterval] = useState(5);
   
   const [uploading, setUploading] = useState(false);
+  const [clientProcessing, setClientProcessing] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,10 +60,99 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
     return () => clearInterval(interval);
   }, [uploadResult, uploadStatus, onUploadComplete]);
 
+  const waitForEvent = (target: EventTarget, event: string) => {
+    return new Promise<void>((resolve, reject) => {
+      const onSuccess = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = () => {
+        cleanup();
+        reject(new Error(`Failed to load video for ${event}`));
+      };
+      const cleanup = () => {
+        target.removeEventListener(event, onSuccess);
+        target.removeEventListener('error', onError);
+      };
+      target.addEventListener(event, onSuccess, { once: true });
+      target.addEventListener('error', onError, { once: true });
+    });
+  };
+
+  const createFramesZipFromVideo = async (file: File, intervalSeconds: number): Promise<File> => {
+    const zip = new JSZip();
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+
+    const objectUrl = URL.createObjectURL(file);
+    video.src = objectUrl;
+
+    try {
+      await waitForEvent(video, 'loadedmetadata');
+      await waitForEvent(video, 'loadeddata');
+
+      const duration = Number.isFinite(video.duration) ? video.duration : 0;
+      const width = video.videoWidth || 1280;
+      const height = video.videoHeight || 720;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('Canvas not supported');
+      }
+
+      const interval = Math.max(1, intervalSeconds || 5);
+      const times: number[] = [];
+      if (duration > 0) {
+        for (let t = 0; t < duration; t += interval) {
+          times.push(t);
+        }
+      }
+      if (times.length === 0) {
+        times.push(0);
+      }
+
+      let index = 0;
+      let hasSeeked = false;
+      for (const time of times) {
+        const targetTime = Math.min(time, duration || 0);
+        if (!hasSeeked || Math.abs(video.currentTime - targetTime) > 0.01) {
+          video.currentTime = targetTime;
+          await waitForEvent(video, 'seeked');
+          hasSeeked = true;
+        }
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((result) => {
+            if (!result) {
+              reject(new Error('Failed to encode frame'));
+              return;
+            }
+            resolve(result);
+          }, 'image/jpeg', 0.9);
+        });
+        const name = `frame_${String(index).padStart(6, '0')}.jpg`;
+        zip.file(name, blob);
+        index += 1;
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      return new File([zipBlob], `${file.name.replace(/\.[^/.]+$/, '')}_frames.zip`, {
+        type: 'application/zip',
+      });
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  };
+
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     
     const file = acceptedFiles[0];
+    const isVideo = file.type.startsWith('video/');
     
     // 位置情報チェック
     if (!selectedCameraId && !useManualLocation) {
@@ -78,7 +169,6 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
       }
     }
 
-    setUploading(true);
     setError(null);
     setUploadResult(null);
     setUploadStatus(null);
@@ -100,6 +190,18 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
         options.longitude = parseFloat(manualLocation.longitude);
       }
 
+      if (isVideo) {
+        setClientProcessing(true);
+        const zipFile = await createFramesZipFromVideo(file, frameInterval);
+        setClientProcessing(false);
+        setUploading(true);
+        const result = await uploadFramesZip(zipFile, options);
+        setUploadResult(result);
+        setUploadStatus('processing');
+        return;
+      }
+
+      setUploading(true);
       const result = await uploadFootage(file, options);
       setUploadResult(result);
       setUploadStatus('processing');
@@ -107,6 +209,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
       setError(err.response?.data?.detail || 'アップロードに失敗しました');
     } finally {
       setUploading(false);
+      setClientProcessing(false);
     }
   }, [selectedCameraId, useManualLocation, manualLocation, frameInterval, onUploadComplete]);
 
@@ -117,7 +220,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
       'image/*': ['.jpg', '.jpeg', '.png'],
     },
     maxFiles: 1,
-    disabled: uploading || uploadStatus === 'processing',
+    disabled: uploading || clientProcessing || uploadStatus === 'processing',
   });
 
   const resetUpload = () => {
@@ -232,7 +335,12 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
       >
         <input {...getInputProps()} />
         
-        {uploading ? (
+        {clientProcessing ? (
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <p className="text-sm text-slate-600">動画をフレーム化中...</p>
+          </div>
+        ) : uploading ? (
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             <p className="text-sm text-slate-600">アップロード中...</p>
@@ -271,7 +379,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
               {isDragActive ? 'ドロップしてアップロード' : 'クリックまたはドラッグ＆ドロップ'}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              対応形式: MP4, MOV, AVI, JPG, PNG
+              動画はブラウザで画像化して送信します
             </p>
           </>
         )}
