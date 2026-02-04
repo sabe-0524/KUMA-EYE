@@ -56,24 +56,25 @@ export const getRelativeTime = (dateString: string): string => {
   return formatDateTime(dateString);
 };
 
+const TIME_RANGE_MS: Record<Exclude<TimeRange, 'all' | 'month'>, number> = {
+  day: 24 * 60 * 60 * 1000,
+  week: 7 * 24 * 60 * 60 * 1000,
+};
+
 export const getTimeRangeDates = (
   timeRange: TimeRange,
   now: Date = new Date()
 ): { startDate: Date | null; endDate: Date | null } => {
-  let startDate: Date | null = null;
-  let endDate: Date | null = null;
-
-  if (timeRange === 'day') {
-    startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    endDate = now;
-  } else if (timeRange === 'week') {
-    startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    endDate = now;
-  } else if (timeRange === 'month') {
-    startDate = new Date(now);
-    startDate.setMonth(startDate.getMonth() - 1);
-    endDate = now;
+  if (timeRange === 'all') {
+    return { startDate: null, endDate: null };
   }
 
-  return { startDate, endDate };
+  if (timeRange === 'month') {
+    const startDate = new Date(now);
+    startDate.setMonth(startDate.getMonth() - 1);
+    return { startDate, endDate: now };
+  }
+
+  const startDate = new Date(now.getTime() - TIME_RANGE_MS[timeRange]);
+  return { startDate, endDate: now };
 };
