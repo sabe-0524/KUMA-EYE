@@ -354,6 +354,10 @@ def process_frame_upload(upload_id: int, frames_dir: str, frame_interval: int = 
 
                 sighting_count += 1
                 db.commit()
+                try:
+                    notify_for_alert(db, alert.id)
+                except Exception as e:
+                    logger.warning("Notification error for alert %s: %s", alert.id, e)
 
         upload.status = "completed"
         upload.frame_count = frame_count
