@@ -237,6 +237,39 @@ make seed         # サンプルデータを投入
 
 ## 🛠️ トラブルシューティング
 
+### Docker Desktopが動かない・エラーが出る
+
+Docker Desktopが「Engine running」と表示されているのに `docker ps` が動かない、または頻繁にエラーが発生する場合は以下の手順で修復できます：
+
+```bash
+# 1. Docker Desktopを強制終了
+killall "Docker Desktop" 2>/dev/null
+killall "Docker" 2>/dev/null
+
+# 2. 問題のあるデータを削除（コンテナデータは保持されます）
+rm -rf ~/Library/Containers/com.docker.docker/Data/vms
+rm -f ~/.docker/run/docker.sock
+
+# 3. Docker Desktopを再起動
+open -a "Docker Desktop"
+
+# 4. 2分ほど待ってから確認
+docker ps
+```
+
+**ワンライナー版（コピペ用）:**
+```bash
+killall "Docker Desktop" 2>/dev/null; killall "Docker" 2>/dev/null; sleep 2 && rm -rf ~/Library/Containers/com.docker.docker/Data/vms 2>/dev/null && rm -f ~/.docker/run/docker.sock 2>/dev/null && open -a "Docker Desktop" && echo "Docker再起動中...2分待ってください"
+```
+
+復旧後、DB/Redisを起動：
+```bash
+docker compose up -d db redis
+make dev
+```
+
+> **💡 ヒント**: Docker Desktopの通知に「更新があります」と表示されている場合は、更新をインストールすると安定することがあります。
+
 ### データベース初期化
 
 ```bash
