@@ -7,28 +7,49 @@ import { useAuth } from '@/shared/providers/AuthProvider';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const getFirebaseAuthErrorMessage = (error: unknown): string => {
+type AuthMode = 'signIn' | 'signUp';
+
+const getFirebaseAuthErrorMessage = (error: unknown, mode: AuthMode): string => {
   if (!(error instanceof FirebaseError)) {
-    return 'ログインに失敗しました。時間をおいて再度お試しください。';
+    return mode === 'signUp'
+      ? '新規登録に失敗しました。時間をおいて再度お試しください。'
+      : 'ログインに失敗しました。時間をおいて再度お試しください。';
+  }
+
+  if (mode === 'signIn') {
+    switch (error.code) {
+      case 'auth/invalid-email':
+        return 'メールアドレスの形式が正しくありません。';
+      case 'auth/invalid-credential':
+        return 'メールアドレスまたはパスワードが正しくありません。';
+      case 'auth/too-many-requests':
+        return '試行回数が多すぎます。しばらく待ってからお試しください。';
+      default:
+        return 'ログインに失敗しました。時間をおいて再度お試しください。';
+    }
   }
 
   switch (error.code) {
     case 'auth/invalid-email':
       return 'メールアドレスの形式が正しくありません。';
-    case 'auth/invalid-credential':
-      return 'メールアドレスまたはパスワードが正しくありません。';
+    case 'auth/email-already-in-use':
+      return 'このメールアドレスは既に登録されています。';
+    case 'auth/weak-password':
+      return 'パスワードが弱すぎます。より強いパスワードを設定してください。';
     case 'auth/too-many-requests':
       return '試行回数が多すぎます。しばらく待ってからお試しください。';
     default:
-      return 'ログインに失敗しました。時間をおいて再度お試しください。';
+      return '新規登録に失敗しました。時間をおいて再度お試しください。';
   }
 };
 
 export default function LoginPage() {
-  const { user, loading, signInWithGoogle, signInWithEmailPassword } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithEmailPassword, signUpWithEmailPassword } = useAuth();
   const router = useRouter();
+  const [authMode, setAuthMode] = useState<AuthMode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -38,17 +59,22 @@ export default function LoginPage() {
     }
   }, [user, router]);
 
+  const handleModeChange = (mode: AuthMode) => {
+    setAuthMode(mode);
+    setErrorMessage('');
+  };
+
   const handleGoogleSignIn = async () => {
     try {
       setErrorMessage('');
       await signInWithGoogle();
     } catch (error) {
-      console.error('ログイン失敗:', error);
+      console.error('Googleログイン失敗:', error);
       setErrorMessage('Googleログインに失敗しました。時間をおいて再度お試しください。');
     }
   };
 
-  const handleEmailPasswordSignIn = async (event: FormEvent<HTMLFormElement>) => {
+  const handleEmailPasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage('');
 
@@ -67,12 +93,27 @@ export default function LoginPage() {
       return;
     }
 
+    if (authMode === 'signUp') {
+      if (!confirmPassword) {
+        setErrorMessage('確認用パスワードを入力してください。');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setErrorMessage('パスワードが一致しません。');
+        return;
+      }
+    }
+
     try {
       setIsSubmitting(true);
-      await signInWithEmailPassword(normalizedEmail, password);
+      if (authMode === 'signUp') {
+        await signUpWithEmailPassword(normalizedEmail, password);
+      } else {
+        await signInWithEmailPassword(normalizedEmail, password);
+      }
     } catch (error) {
-      console.error('ログイン失敗:', error);
-      setErrorMessage(getFirebaseAuthErrorMessage(error));
+      console.error('認証失敗:', error);
+      setErrorMessage(getFirebaseAuthErrorMessage(error, authMode));
     } finally {
       setIsSubmitting(false);
     }
@@ -100,15 +141,36 @@ export default function LoginPage() {
             クマ検出警報システム
           </h2>
           <p className="text-slate-600">
-            ログインしてシステムにアクセス
+            {authMode === 'signUp' ? '新規登録してシステムにアクセス' : 'ログインしてシステムにアクセス'}
           </p>
           <p className="mt-2 text-sm text-slate-500">
-            Gmail以外のメールアドレスでもログインできます
+            Gmail以外のメールアドレスでも利用できます
           </p>
         </div>
 
         <div className="mt-8">
-          <form onSubmit={handleEmailPasswordSignIn} className="space-y-4">
+          <div className="mb-6 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => handleModeChange('signIn')}
+              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                authMode === 'signIn' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              ログイン
+            </button>
+            <button
+              type="button"
+              onClick={() => handleModeChange('signUp')}
+              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                authMode === 'signUp' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              新規登録
+            </button>
+          </div>
+
+          <form onSubmit={handleEmailPasswordSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
                 メールアドレス
@@ -132,16 +194,31 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
+                autoComplete={authMode === 'signUp' ? 'new-password' : 'current-password'}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
               />
             </div>
+            {authMode === 'signUp' && (
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-1">
+                  パスワード（確認）
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  autoComplete="new-password"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
+                />
+              </div>
+            )}
             <button
               type="submit"
               disabled={isSubmitting}
               className="w-full px-4 py-3 text-base font-medium rounded-lg text-white bg-slate-800 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400/60 transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'ログイン中...' : 'メールアドレスでログイン'}
+              {isSubmitting ? (authMode === 'signUp' ? '登録中...' : 'ログイン中...') : authMode === 'signUp' ? 'メールアドレスで新規登録' : 'メールアドレスでログイン'}
             </button>
           </form>
 

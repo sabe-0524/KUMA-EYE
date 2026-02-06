@@ -160,7 +160,7 @@ make seed         # サンプルデータを投入
 ## 🎯 主な機能
 
 ### 🔐 認証機能
-- **Firebase Authentication**: Googleアカウント + メールアドレス/パスワードでログイン
+- **Firebase Authentication**: Googleアカウント + メールアドレス/パスワードでログイン・新規登録
 - **JWT トークン認証**: APIアクセスの保護
 
 ### 📹 映像アップロード・熊検出
