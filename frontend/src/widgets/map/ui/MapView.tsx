@@ -167,10 +167,12 @@ const LocationMarker: React.FC<{
   manualLocation: LatLng | null;
 }> = ({ currentLocation, manualLocation }) => {
   if (currentLocation) {
+    const currentCenter: [number, number] = [currentLocation.lat, currentLocation.lng];
+
     return (
       <>
         <CircleMarker
-          center={[currentLocation.lat, currentLocation.lng]}
+          center={currentCenter}
           radius={10}
           pathOptions={{
             color: '#ffffff',
@@ -181,7 +183,7 @@ const LocationMarker: React.FC<{
           interactive={false}
         />
         <CircleMarker
-          center={[currentLocation.lat, currentLocation.lng]}
+          center={currentCenter}
           radius={7}
           pathOptions={{
             color: '#ffffff',
