@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.auth import initialize_firebase
-from app.api import cameras, uploads, sightings, alerts, images
+from app.api import cameras, uploads, sightings, alerts, images, users
 
 # Firebase Admin SDK初期化
 initialize_firebase()
@@ -55,6 +55,7 @@ app.include_router(uploads.router, prefix=settings.API_V1_PREFIX)
 app.include_router(sightings.router, prefix=settings.API_V1_PREFIX)
 app.include_router(alerts.router, prefix=settings.API_V1_PREFIX)
 app.include_router(images.router, prefix=settings.API_V1_PREFIX)
+app.include_router(users.router, prefix=settings.API_V1_PREFIX)
 
 
 if __name__ == "__main__":

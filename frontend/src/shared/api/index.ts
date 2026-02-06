@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_ENDPOINTS, API_BASE_URL } from '@/shared/lib/config';
+import { API_BASE_URL } from '@/shared/lib/config';
 import { auth } from '@/shared/lib/firebase';
 import type {
   Camera,
@@ -13,6 +13,8 @@ import type {
   AlertCount,
   UploadResponse,
   UploadDetail,
+  UserProfile,
+  UserSyncResponse,
 } from '@/shared/types';
 
 // Axiosインスタンス
@@ -23,9 +25,30 @@ const apiClient = axios.create({
   },
 });
 
+const USER_ENDPOINTS_WITHOUT_REDIRECT = ['/users/sync', '/users/me'] as const;
+
+const shouldSkipAuthRedirect = (url: string): boolean =>
+  USER_ENDPOINTS_WITHOUT_REDIRECT.some((endpoint) => url.includes(endpoint));
+
+const withAuthHeader = (idToken?: string) =>
+  idToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      }
+    : undefined;
+
 // リクエストインターセプター: Firebase認証トークンを自動付与
 apiClient.interceptors.request.use(
   async (config) => {
+    const existingAuthHeader =
+      (config.headers as Record<string, string | undefined> | undefined)?.Authorization;
+
+    if (existingAuthHeader) {
+      return config;
+    }
+
     const user = auth.currentUser;
     if (user) {
       try {
@@ -46,7 +69,11 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const requestUrl: string = error.config?.url || '';
+    const isUserSyncRequest = shouldSkipAuthRedirect(requestUrl);
+
+    if (status === 401 && !isUserSyncRequest) {
       // 認証エラーの場合、ログインページにリダイレクト
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
@@ -236,6 +263,27 @@ export const acknowledgeAllAlerts = async (acknowledgedBy?: string): Promise<{ a
   const response = await apiClient.put<{ acknowledged_count: number }>('/alerts/acknowledge-all', {
     acknowledged_by: acknowledgedBy,
   });
+  return response.data;
+};
+
+// =============================================================================
+// ユーザーAPI
+// =============================================================================
+
+export const syncCurrentUser = async (idToken?: string): Promise<UserSyncResponse> => {
+  const response = await apiClient.post<UserSyncResponse>(
+    '/users/sync',
+    undefined,
+    withAuthHeader(idToken)
+  );
+  return response.data;
+};
+
+export const getMyProfile = async (idToken?: string): Promise<UserProfile> => {
+  const response = await apiClient.get<UserProfile>(
+    '/users/me',
+    withAuthHeader(idToken)
+  );
   return response.data;
 };
 

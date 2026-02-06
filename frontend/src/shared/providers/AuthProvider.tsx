@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
   User,
   createUserWithEmailAndPassword,
@@ -10,6 +10,7 @@ import {
   signOut
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/shared/lib/firebase';
+import { syncCurrentUser } from '@/shared/api';
 
 interface AuthContextType {
   user: User | null;
@@ -26,11 +27,26 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastSyncedUidRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       setLoading(false);
+
+      if (user) {
+        if (lastSyncedUidRef.current !== user.uid) {
+          try {
+            const idToken = await user.getIdToken();
+            await syncCurrentUser(idToken);
+            lastSyncedUidRef.current = user.uid;
+          } catch (error) {
+            console.error('ユーザー同期エラー:', error);
+          }
+        }
+      } else {
+        lastSyncedUidRef.current = null;
+      }
     });
 
     return () => unsubscribe();

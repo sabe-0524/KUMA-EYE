@@ -3,14 +3,22 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Camera, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { createCamera, getCameras } from '@/shared/api';
-import type { Camera as CameraType } from '@/shared/types';
+import type { Camera as CameraType, LatLng } from '@/shared/types';
 
 interface CameraRegisterPanelProps {
   onRegisterComplete?: () => void;
+  placementMode: boolean;
+  selectedLocation: LatLng | null;
+  onPlacementModeChange: (enabled: boolean) => void;
+  onClearSelectedLocation: () => void;
 }
 
 export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
   onRegisterComplete,
+  placementMode,
+  selectedLocation,
+  onPlacementModeChange,
+  onClearSelectedLocation,
 }) => {
   const [name, setName] = useState('');
   const [latitude, setLatitude] = useState('');
@@ -21,6 +29,12 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
   const [success, setSuccess] = useState(false);
   const [cameras, setCameras] = useState<CameraType[]>([]);
   const [isLoadingCameras, setIsLoadingCameras] = useState(true);
+
+  const clearSelectedLocationInputs = () => {
+    onClearSelectedLocation();
+    setLatitude('');
+    setLongitude('');
+  };
 
   // カメラ一覧を取得
   useEffect(() => {
@@ -37,6 +51,13 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
     fetchCameras();
   }, [success]);
 
+  useEffect(() => {
+    if (!selectedLocation) return;
+    setLatitude(selectedLocation.lat.toFixed(6));
+    setLongitude(selectedLocation.lng.toFixed(6));
+    setError(null);
+  }, [selectedLocation]);
+
   // 現在地を取得
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -44,15 +65,53 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
       return;
     }
 
+    const setLocation = (position: GeolocationPosition) => {
+      setLatitude(position.coords.latitude.toFixed(6));
+      setLongitude(position.coords.longitude.toFixed(6));
+      setError(null);
+    };
+
+    const getErrorMessage = (err: GeolocationPositionError) => {
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          return '位置情報の利用が拒否されました。ブラウザの設定を確認してください';
+        case err.POSITION_UNAVAILABLE:
+          return '位置情報を特定できませんでした。電波状況の良い場所で再試行してください';
+        case err.TIMEOUT:
+          return '位置情報の取得がタイムアウトしました。再試行してください';
+        default:
+          return '位置情報の取得に失敗しました';
+      }
+    };
+
+    const fallbackOptions: PositionOptions = {
+      enableHighAccuracy: false,
+      timeout: 15000,
+      maximumAge: 300000,
+    };
+
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLatitude(position.coords.latitude.toFixed(6));
-        setLongitude(position.coords.longitude.toFixed(6));
-        setError(null);
+      setLocation,
+      (firstError) => {
+        if (firstError.code === firstError.PERMISSION_DENIED) {
+          setError(getErrorMessage(firstError));
+          console.error('Geolocation error:', firstError);
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          setLocation,
+          (fallbackError) => {
+            setError(getErrorMessage(fallbackError));
+            console.error('Geolocation error:', fallbackError);
+          },
+          fallbackOptions
+        );
       },
-      (err) => {
-        setError('位置情報の取得に失敗しました');
-        console.error('Geolocation error:', err);
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000,
       }
     );
   };
@@ -97,6 +156,8 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
       setLatitude('');
       setLongitude('');
       setDescription('');
+      onPlacementModeChange(false);
+      onClearSelectedLocation();
       onRegisterComplete?.();
 
       // 3秒後に成功メッセージを消す
@@ -138,15 +199,50 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
             <label className="block text-sm font-medium text-slate-700">
               位置情報 <span className="text-red-500">*</span>
             </label>
-            <button
-              type="button"
-              onClick={getCurrentLocation}
-              className="text-sm text-amber-700 hover:text-amber-800 flex items-center gap-1"
-            >
-              <MapPin className="w-4 h-4" />
-              現在地を取得
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onPlacementModeChange(!placementMode)}
+                className={`text-sm flex items-center gap-1 ${
+                  placementMode
+                    ? 'text-emerald-700 hover:text-emerald-800'
+                    : 'text-slate-600 hover:text-slate-700'
+                }`}
+              >
+                <MapPin className="w-4 h-4" />
+                {placementMode ? '設置モード: ON' : '地図クリックで設置'}
+              </button>
+              <button
+                type="button"
+                onClick={getCurrentLocation}
+                className="text-sm text-amber-700 hover:text-amber-800 flex items-center gap-1"
+              >
+                <MapPin className="w-4 h-4" />
+                現在地を取得
+              </button>
+            </div>
           </div>
+
+          {placementMode && (
+            <div className="text-sm bg-emerald-500/10 text-emerald-800 px-3 py-2 rounded-lg border border-emerald-200/80">
+              設置モード中です。メイン地図をクリックして設置地点を選択してください。
+            </div>
+          )}
+
+          {selectedLocation && (
+            <div className="flex items-center justify-between text-xs bg-slate-100/80 text-slate-700 px-3 py-2 rounded-lg border border-slate-200/80">
+              <span>
+                選択地点: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+              </span>
+              <button
+                type="button"
+                onClick={clearSelectedLocationInputs}
+                className="text-slate-600 hover:text-slate-800"
+              >
+                クリア
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

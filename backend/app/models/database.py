@@ -130,3 +130,15 @@ class Job(Base):
     
     # Relationships
     upload = relationship("Upload", back_populates="jobs")
+
+
+class User(Base):
+    """アプリケーションユーザー（Firebase連携）"""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    firebase_uid = Column(String(128), nullable=False, unique=True, index=True)
+    email = Column(String(255), nullable=False, index=True)
+    name = Column(String(255))
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
