@@ -12,7 +12,8 @@ import {
 } from 'react-leaflet';
 import type { LatLngBoundsExpression } from 'leaflet';
 import { getSightings, getFullImageUrl } from '@/shared/api';
-import type { DisplayMode, Sighting } from '@/shared/types';
+import { getRangeStartIso } from '@/shared/lib/timeRange';
+import type { DisplayMode, Sighting, TimeRange } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
 import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
@@ -35,6 +36,7 @@ interface MapViewProps {
   onSightingSelect?: (sighting: Sighting) => void;
   refreshInterval?: number;
   refreshTrigger?: number;
+  timeRange: TimeRange;
   onDisplayContextChange?: (context: { mode: DisplayMode; bounds: string | null }) => void;
 }
 
@@ -258,6 +260,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onSightingSelect,
   refreshInterval = 30000,
   refreshTrigger = 0,
+  timeRange,
   onDisplayContextChange,
 }) => {
   const [sightings, setSightings] = useState<Sighting[]>([]);
@@ -286,6 +289,7 @@ export const MapView: React.FC<MapViewProps> = ({
       }
 
       const response = await getSightings({
+        start_date: getRangeStartIso(timeRange),
         limit: 500,
         ...(bounds ? { bounds } : {}),
       });
@@ -297,7 +301,7 @@ export const MapView: React.FC<MapViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [displayMode, currentLocation, manualLocation]);
+  }, [displayMode, currentLocation, manualLocation, timeRange]);
 
   // 初回ロードと定期更新
   useEffect(() => {

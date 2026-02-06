@@ -4,6 +4,7 @@ export type AlertLevel = 'critical' | 'warning' | 'caution' | 'low';
 export type UploadStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type FileType = 'video' | 'image';
 export type DisplayMode = 'national' | 'nearby';
+export type TimeRange = '1d' | '7d' | '30d';
 
 // カメラ
 export interface Camera {

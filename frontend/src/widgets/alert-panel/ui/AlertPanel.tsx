@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Bell, CheckCircle, AlertTriangle, X } from 'lucide-react';
 import { getUnacknowledgedAlerts, acknowledgeAlert, getAlertCount, getFullImageUrl } from '@/shared/api';
-import type { Alert, AlertCount, DisplayMode } from '@/shared/types';
+import { getRangeStartIso } from '@/shared/lib/timeRange';
+import type { Alert, AlertCount, DisplayMode, TimeRange } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis, alertLevelColors } from '@/shared/types';
 import { formatDateTime, getRelativeTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
@@ -11,6 +12,7 @@ import { ImageModal } from '@/shared/ui';
 interface AlertPanelProps {
   refreshInterval?: number;
   onAlertClick?: (alert: Alert) => void;
+  timeRange: TimeRange;
   displayMode?: DisplayMode;
   nearbyBounds?: string | null;
 }
@@ -18,6 +20,7 @@ interface AlertPanelProps {
 export const AlertPanel: React.FC<AlertPanelProps> = ({
   refreshInterval = 10000,
   onAlertClick,
+  timeRange,
   displayMode = 'national',
   nearbyBounds = null,
 }) => {
@@ -49,9 +52,10 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
 
   const fetchAlerts = useCallback(async () => {
     try {
+      const startDate = getRangeStartIso(timeRange);
       const [alertsResponse, countResponse] = await Promise.all([
-        getUnacknowledgedAlerts(20),
-        getAlertCount(),
+        getUnacknowledgedAlerts(20, { start_date: startDate }),
+        getAlertCount({ start_date: startDate }),
       ]);
       setAlerts(alertsResponse.alerts.filter((alert) => alert.alert_level !== 'low'));
       setAlertCount(countResponse);
@@ -60,7 +64,7 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [timeRange]);
 
   useEffect(() => {
     fetchAlerts();

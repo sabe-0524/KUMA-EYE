@@ -8,7 +8,7 @@ import { CameraRegisterPanel } from '@/features/camera-register';
 import { AlertPanel } from '@/widgets/alert-panel';
 import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
-import type { Alert, DisplayMode, Sighting } from '@/shared/types';
+import type { Alert, DisplayMode, Sighting, TimeRange } from '@/shared/types';
 
 // SSRを無効化してMapViewを読み込む（Leafletはクライアントサイドのみ）
 const MapView = dynamic(
@@ -32,6 +32,7 @@ export default function HomePage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('national');
   const [nearbyBounds, setNearbyBounds] = useState<string | null>(null);
+  const [selectedRange, setSelectedRange] = useState<TimeRange>('7d');
 
   // 未認証の場合はログインページにリダイレクト
   useEffect(() => {
@@ -107,6 +108,32 @@ export default function HomePage() {
             🐻 クマ検出警報システム
           </h1>
           <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-1 p-1 bg-white/10 border border-white/20 rounded-lg">
+              <button
+                onClick={() => setSelectedRange('1d')}
+                className={`px-2 py-1 text-sm rounded transition-colors ${
+                  selectedRange === '1d' ? 'bg-white text-amber-700' : 'hover:bg-white/10'
+                }`}
+              >
+                1日
+              </button>
+              <button
+                onClick={() => setSelectedRange('7d')}
+                className={`px-2 py-1 text-sm rounded transition-colors ${
+                  selectedRange === '7d' ? 'bg-white text-amber-700' : 'hover:bg-white/10'
+                }`}
+              >
+                1週間
+              </button>
+              <button
+                onClick={() => setSelectedRange('30d')}
+                className={`px-2 py-1 text-sm rounded transition-colors ${
+                  selectedRange === '30d' ? 'bg-white text-amber-700' : 'hover:bg-white/10'
+                }`}
+              >
+                1ヶ月
+              </button>
+            </div>
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-white/10 border border-white/20 rounded-lg">
               <span className="text-sm">{user.displayName || user.email}</span>
             </div>
@@ -162,6 +189,7 @@ export default function HomePage() {
           <MapView
             onSightingSelect={handleSightingClick}
             refreshTrigger={refreshTrigger}
+            timeRange={selectedRange}
             onDisplayContextChange={handleDisplayContextChange}
           />
         </div>
@@ -209,6 +237,7 @@ export default function HomePage() {
                 {activePanel === 'alerts' && (
                   <AlertPanel
                     onAlertClick={handleAlertClick}
+                    timeRange={selectedRange}
                     displayMode={displayMode}
                     nearbyBounds={nearbyBounds}
                   />
