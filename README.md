@@ -21,7 +21,7 @@
 | フロントエンド | Next.js 15.0.0 + React 18 + TypeScript | 3000 |
 | バックエンドAPI | FastAPI + Python 3.13 | 8000 |
 | データベース | Supabase (リモート接続) | - |
-| 認証 | Firebase Auth (Google + Email/Password) | - |
+| 認証 | Firebase Auth (Google + Email/Passwordログイン・新規登録) | - |
 | ファイルストレージ | ローカル (`./backend/storage`) | - |
 
 ### デプロイ手順
