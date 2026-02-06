@@ -182,7 +182,7 @@ const LocationMarker: React.FC<{
         />
         <CircleMarker
           center={[currentLocation.lat, currentLocation.lng]}
-          radius={6}
+          radius={7}
           pathOptions={{
             color: '#ffffff',
             fillColor: '#2563eb',
