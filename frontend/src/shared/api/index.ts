@@ -287,6 +287,31 @@ export const getMyProfile = async (idToken?: string): Promise<UserProfile> => {
   return response.data;
 };
 
+export const updateNotificationSettings = async (
+  emailOptIn: boolean,
+  idToken?: string
+): Promise<UserProfile> => {
+  const response = await apiClient.put<UserProfile>(
+    '/users/me/notification-settings',
+    { email_opt_in: emailOptIn },
+    withAuthHeader(idToken)
+  );
+  return response.data;
+};
+
+export const updateMyLocation = async (
+  latitude: number,
+  longitude: number,
+  idToken?: string
+): Promise<UserProfile> => {
+  const response = await apiClient.post<UserProfile>(
+    '/users/me/location',
+    { latitude, longitude },
+    withAuthHeader(idToken)
+  );
+  return response.data;
+};
+
 // =============================================================================
 // 画像URL
 // =============================================================================

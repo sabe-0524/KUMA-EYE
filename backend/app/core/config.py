@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     SMTP_FROM: str = ""
     SMTP_USE_TLS: bool = True
 
+    # Notification
+    NOTIFY_RADIUS_METERS: int = 5000
+    NOTIFY_STALE_MINUTES: int = 30
+
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
     

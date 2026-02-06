@@ -4,13 +4,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, RefreshCw, Settings } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
-import { getMyProfile } from '@/shared/api';
-import type { UserProfile } from '@/shared/types';
+import { NotificationSettingsCard } from '@/features/notification-settings';
 
 export default function SettingsPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, profile, refreshProfile } = useAuth();
   const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,16 +25,14 @@ export default function SettingsPage() {
     setIsFetching(true);
     setError(null);
     try {
-      const idToken = await user.getIdToken();
-      const data = await getMyProfile(idToken);
-      setProfile(data);
+      await refreshProfile();
     } catch (e) {
       console.error('プロフィール取得エラー:', e);
       setError('プロフィール情報の取得に失敗しました。');
     } finally {
       setIsFetching(false);
     }
-  }, [user]);
+  }, [refreshProfile, user]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -83,6 +79,10 @@ export default function SettingsPage() {
       </header>
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6">
+        <div className="mb-6">
+          <NotificationSettingsCard />
+        </div>
+
         <section className="bg-white/95 border border-slate-200/70 rounded-xl shadow-md p-5 sm:p-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-lg font-semibold text-slate-900">アカウント情報</h2>
