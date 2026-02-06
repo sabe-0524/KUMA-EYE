@@ -8,7 +8,7 @@ import { CameraRegisterPanel } from '@/features/camera-register';
 import { AlertPanel } from '@/widgets/alert-panel';
 import { X, Upload, Bell, RefreshCw, Camera, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
-import type { Alert, DisplayMode, Sighting } from '@/shared/types';
+import type { Alert, DisplayMode, LatLng, Sighting } from '@/shared/types';
 
 // SSRを無効化してMapViewを読み込む（Leafletはクライアントサイドのみ）
 const MapView = dynamic(
@@ -32,6 +32,9 @@ export default function HomePage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('national');
   const [nearbyBounds, setNearbyBounds] = useState<string | null>(null);
+  const [isCameraPlacementMode, setIsCameraPlacementMode] = useState(false);
+  const [selectedCameraLocation, setSelectedCameraLocation] =
+    useState<LatLng | null>(null);
 
   // 未認証の場合はログインページにリダイレクト
   useEffect(() => {
@@ -170,6 +173,9 @@ export default function HomePage() {
             onSightingSelect={handleSightingClick}
             refreshTrigger={refreshTrigger}
             onDisplayContextChange={handleDisplayContextChange}
+            cameraPlacementMode={isCameraPlacementMode}
+            cameraPlacementLocation={selectedCameraLocation}
+            onCameraPlacementSelect={setSelectedCameraLocation}
           />
         </div>
 
@@ -210,7 +216,13 @@ export default function HomePage() {
                 )}
                 {activePanel === 'camera' && (
                   <div className="p-4">
-                    <CameraRegisterPanel onRegisterComplete={refreshMap} />
+                    <CameraRegisterPanel
+                      onRegisterComplete={refreshMap}
+                      placementMode={isCameraPlacementMode}
+                      selectedLocation={selectedCameraLocation}
+                      onPlacementModeChange={setIsCameraPlacementMode}
+                      onClearSelectedLocation={() => setSelectedCameraLocation(null)}
+                    />
                   </div>
                 )}
                 {activePanel === 'alerts' && (

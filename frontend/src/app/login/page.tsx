@@ -1,12 +1,63 @@
 'use client';
 
-import { useEffect } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { FirebaseError } from 'firebase/app';
 import { useAuth } from '@/shared/providers/AuthProvider';
 
+// NOTE: クライアント側では簡易チェックのみを行い、最終的な検証は Firebase 側に委ねる。
+const EMAIL_PATTERN = /^(?!.*\.\.)(?!.*\.$)[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ERROR_MESSAGE_ID = 'auth-form-error-message';
+
+type AuthMode = 'signIn' | 'signUp';
+type ErrorField = 'email' | 'password' | 'confirmPassword' | 'general';
+type FieldError = { field: ErrorField; message: string };
+
+const getFirebaseAuthError = (error: unknown, mode: AuthMode): FieldError => {
+  if (!(error instanceof FirebaseError)) {
+    return {
+      field: 'general',
+      message: mode === 'signUp'
+        ? '新規登録に失敗しました。時間をおいて再度お試しください。'
+        : 'ログインに失敗しました。時間をおいて再度お試しください。'
+    };
+  }
+
+  if (error.code === 'auth/invalid-email') {
+    return { field: 'email', message: 'メールアドレスの形式が正しくありません。' };
+  }
+  if (error.code === 'auth/too-many-requests') {
+    return { field: 'general', message: '試行回数が多すぎます。しばらく待ってからお試しください。' };
+  }
+
+  if (mode === 'signIn') {
+    switch (error.code) {
+      case 'auth/invalid-credential':
+        return { field: 'password', message: 'メールアドレスまたはパスワードが正しくありません。' };
+      default:
+        return { field: 'general', message: 'ログインに失敗しました。時間をおいて再度お試しください。' };
+    }
+  }
+
+  switch (error.code) {
+    case 'auth/email-already-in-use':
+      return { field: 'email', message: 'このメールアドレスは既に登録されています。' };
+    case 'auth/weak-password':
+      return { field: 'password', message: 'パスワードが弱すぎます。より強いパスワードを設定してください。' };
+    default:
+      return { field: 'general', message: '新規登録に失敗しました。時間をおいて再度お試しください。' };
+  }
+};
+
 export default function LoginPage() {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithEmailPassword, signUpWithEmailPassword } = useAuth();
   const router = useRouter();
+  const [authMode, setAuthMode] = useState<AuthMode>('signIn');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -14,11 +65,78 @@ export default function LoginPage() {
     }
   }, [user, router]);
 
+  const handleModeChange = (mode: AuthMode) => {
+    if (isSubmitting) {
+      return;
+    }
+    setAuthMode(mode);
+    setPassword('');
+    setConfirmPassword('');
+    setFieldError(null);
+  };
+
   const handleGoogleSignIn = async () => {
     try {
+      setFieldError(null);
+      setIsSubmitting(true);
       await signInWithGoogle();
     } catch (error) {
-      console.error('ログイン失敗:', error);
+      console.error('Googleログイン失敗:', error);
+      setFieldError({ field: 'general', message: 'Googleログインに失敗しました。時間をおいて再度お試しください。' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEmailPasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
+    setFieldError(null);
+
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
+      setFieldError({ field: 'email', message: 'メールアドレスを入力してください。' });
+      return;
+    }
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setFieldError({ field: 'email', message: 'メールアドレスの形式が正しくありません。' });
+      return;
+    }
+    if (!password) {
+      setFieldError({ field: 'password', message: 'パスワードを入力してください。' });
+      return;
+    }
+
+    if (authMode === 'signUp') {
+      if (password.length < 6) {
+        setFieldError({ field: 'password', message: 'パスワードは6文字以上で入力してください。' });
+        return;
+      }
+      if (!confirmPassword) {
+        setFieldError({ field: 'confirmPassword', message: '確認用パスワードを入力してください。' });
+        return;
+      }
+      if (password !== confirmPassword) {
+        setFieldError({ field: 'confirmPassword', message: 'パスワードが一致しません。' });
+        return;
+      }
+    }
+
+    try {
+      setIsSubmitting(true);
+      if (authMode === 'signUp') {
+        await signUpWithEmailPassword(normalizedEmail, password);
+      } else {
+        await signInWithEmailPassword(normalizedEmail, password);
+      }
+    } catch (error) {
+      console.error('認証失敗:', error);
+      setFieldError(getFirebaseAuthError(error, authMode));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -44,14 +162,118 @@ export default function LoginPage() {
             クマ検出警報システム
           </h2>
           <p className="text-slate-600">
-            ログインしてシステムにアクセス
+            {authMode === 'signUp' ? '新規登録してシステムにアクセス' : 'ログインしてシステムにアクセス'}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            Gmail以外のメールアドレスでも利用できます
           </p>
         </div>
 
         <div className="mt-8">
+          <div className="mb-6 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => handleModeChange('signIn')}
+              disabled={isSubmitting}
+              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                authMode === 'signIn' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              } disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              ログイン
+            </button>
+            <button
+              type="button"
+              onClick={() => handleModeChange('signUp')}
+              disabled={isSubmitting}
+              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                authMode === 'signUp' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              } disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              新規登録
+            </button>
+          </div>
+
+          <form onSubmit={handleEmailPasswordSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
+                メールアドレス
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+                aria-invalid={fieldError?.field === 'email'}
+                aria-describedby={fieldError?.field === 'email' ? ERROR_MESSAGE_ID : undefined}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
+                パスワード
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete={authMode === 'signUp' ? 'new-password' : 'current-password'}
+                required
+                aria-invalid={fieldError?.field === 'password'}
+                aria-describedby={fieldError?.field === 'password' ? ERROR_MESSAGE_ID : undefined}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
+              />
+            </div>
+            {authMode === 'signUp' && (
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-1">
+                  パスワード（確認）
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  autoComplete="new-password"
+                  required
+                  aria-invalid={fieldError?.field === 'confirmPassword'}
+                  aria-describedby={fieldError?.field === 'confirmPassword' ? ERROR_MESSAGE_ID : undefined}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
+                />
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full px-4 py-3 text-base font-medium rounded-lg text-white bg-slate-800 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400/60 transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? (authMode === 'signUp' ? '登録中...' : 'ログイン中...') : authMode === 'signUp' ? 'メールアドレスで新規登録' : 'メールアドレスでログイン'}
+            </button>
+          </form>
+
+          {fieldError && (
+            <div
+              id={ERROR_MESSAGE_ID}
+              role="alert"
+              className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {fieldError.message}
+            </div>
+          )}
+
+          <div className="my-6 flex items-center">
+            <div className="h-px flex-1 bg-slate-200"></div>
+            <span className="mx-3 text-xs text-slate-500">または</span>
+            <div className="h-px flex-1 bg-slate-200"></div>
+          </div>
+
           <button
             onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center px-4 py-3 border border-slate-200/80 text-base font-medium rounded-lg text-slate-800 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400/60 transition-colors duration-200 shadow-sm hover:shadow-md"
+            disabled={isSubmitting}
+            className="w-full flex items-center justify-center px-4 py-3 border border-slate-200/80 text-base font-medium rounded-lg text-slate-800 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400/60 transition-colors duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
           >
             <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

@@ -1,7 +1,14 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import {
+  User,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+} from 'firebase/auth';
 import { auth, googleProvider } from '@/shared/lib/firebase';
 import { getMyProfile, syncCurrentUser, updateMyLocation } from '@/shared/api';
 import {
@@ -40,6 +47,8 @@ interface AuthContextType {
   locationSyncStatus: LocationSyncStatus;
   locationSyncError: string | null;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmailPassword: (email: string, password: string) => Promise<void>;
+  signUpWithEmailPassword: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   getIdToken: () => Promise<string | null>;
   refreshProfile: () => Promise<UserProfile | null>;
@@ -228,6 +237,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithEmailPassword = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const signUpWithEmailPassword = async (email: string, password: string) => {
+    await createUserWithEmailAndPassword(auth, email, password);
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -256,6 +273,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         locationSyncStatus,
         locationSyncError,
         signInWithGoogle,
+        signInWithEmailPassword,
+        signUpWithEmailPassword,
         logout,
         getIdToken,
         refreshProfile,
