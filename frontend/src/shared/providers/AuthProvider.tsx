@@ -62,21 +62,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithEmailPassword = async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      console.error('メール認証エラー:', error);
-      throw error;
-    }
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const signUpWithEmailPassword = async (email: string, password: string) => {
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      console.error('メール登録エラー:', error);
-      throw error;
-    }
+    await createUserWithEmailAndPassword(auth, email, password);
   };
 
   const logout = async () => {

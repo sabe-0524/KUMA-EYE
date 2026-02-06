@@ -10,37 +10,42 @@ const EMAIL_PATTERN = /^(?!.*\.\.)(?!.*\.$)[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ERROR_MESSAGE_ID = 'auth-form-error-message';
 
 type AuthMode = 'signIn' | 'signUp';
+type ErrorField = 'email' | 'password' | 'confirmPassword' | 'general';
+type FieldError = { field: ErrorField; message: string };
 
-const getFirebaseAuthErrorMessage = (error: unknown, mode: AuthMode): string => {
+const getFirebaseAuthError = (error: unknown, mode: AuthMode): FieldError => {
   if (!(error instanceof FirebaseError)) {
-    return mode === 'signUp'
-      ? '新規登録に失敗しました。時間をおいて再度お試しください。'
-      : 'ログインに失敗しました。時間をおいて再度お試しください。';
+    return {
+      field: 'general',
+      message: mode === 'signUp'
+        ? '新規登録に失敗しました。時間をおいて再度お試しください。'
+        : 'ログインに失敗しました。時間をおいて再度お試しください。'
+    };
   }
 
   if (error.code === 'auth/invalid-email') {
-    return 'メールアドレスの形式が正しくありません。';
+    return { field: 'email', message: 'メールアドレスの形式が正しくありません。' };
   }
   if (error.code === 'auth/too-many-requests') {
-    return '試行回数が多すぎます。しばらく待ってからお試しください。';
+    return { field: 'general', message: '試行回数が多すぎます。しばらく待ってからお試しください。' };
   }
 
   if (mode === 'signIn') {
     switch (error.code) {
       case 'auth/invalid-credential':
-        return 'メールアドレスまたはパスワードが正しくありません。';
+        return { field: 'password', message: 'メールアドレスまたはパスワードが正しくありません。' };
       default:
-        return 'ログインに失敗しました。時間をおいて再度お試しください。';
+        return { field: 'general', message: 'ログインに失敗しました。時間をおいて再度お試しください。' };
     }
   }
 
   switch (error.code) {
     case 'auth/email-already-in-use':
-      return 'このメールアドレスは既に登録されています。';
+      return { field: 'email', message: 'このメールアドレスは既に登録されています。' };
     case 'auth/weak-password':
-      return 'パスワードが弱すぎます。より強いパスワードを設定してください。';
+      return { field: 'password', message: 'パスワードが弱すぎます。より強いパスワードを設定してください。' };
     default:
-      return '新規登録に失敗しました。時間をおいて再度お試しください。';
+      return { field: 'general', message: '新規登録に失敗しました。時間をおいて再度お試しください。' };
   }
 };
 
@@ -51,7 +56,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -67,17 +72,17 @@ export default function LoginPage() {
     setAuthMode(mode);
     setPassword('');
     setConfirmPassword('');
-    setErrorMessage('');
+    setFieldError(null);
   };
 
   const handleGoogleSignIn = async () => {
     try {
-      setErrorMessage('');
+      setFieldError(null);
       setIsSubmitting(true);
       await signInWithGoogle();
     } catch (error) {
       console.error('Googleログイン失敗:', error);
-      setErrorMessage('Googleログインに失敗しました。時間をおいて再度お試しください。');
+      setFieldError({ field: 'general', message: 'Googleログインに失敗しました。時間をおいて再度お試しください。' });
     } finally {
       setIsSubmitting(false);
     }
@@ -85,34 +90,37 @@ export default function LoginPage() {
 
   const handleEmailPasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setErrorMessage('');
+    if (isSubmitting) {
+      return;
+    }
+    setFieldError(null);
 
     const normalizedEmail = email.trim();
 
     if (!normalizedEmail) {
-      setErrorMessage('メールアドレスを入力してください。');
+      setFieldError({ field: 'email', message: 'メールアドレスを入力してください。' });
       return;
     }
     if (!EMAIL_PATTERN.test(normalizedEmail)) {
-      setErrorMessage('メールアドレスの形式が正しくありません。');
+      setFieldError({ field: 'email', message: 'メールアドレスの形式が正しくありません。' });
       return;
     }
     if (!password) {
-      setErrorMessage('パスワードを入力してください。');
+      setFieldError({ field: 'password', message: 'パスワードを入力してください。' });
       return;
     }
 
     if (authMode === 'signUp') {
       if (password.length < 6) {
-        setErrorMessage('パスワードは6文字以上で入力してください。');
+        setFieldError({ field: 'password', message: 'パスワードは6文字以上で入力してください。' });
         return;
       }
       if (!confirmPassword) {
-        setErrorMessage('確認用パスワードを入力してください。');
+        setFieldError({ field: 'confirmPassword', message: '確認用パスワードを入力してください。' });
         return;
       }
       if (password !== confirmPassword) {
-        setErrorMessage('パスワードが一致しません。');
+        setFieldError({ field: 'confirmPassword', message: 'パスワードが一致しません。' });
         return;
       }
     }
@@ -126,7 +134,7 @@ export default function LoginPage() {
       }
     } catch (error) {
       console.error('認証失敗:', error);
-      setErrorMessage(getFirebaseAuthErrorMessage(error, authMode));
+      setFieldError(getFirebaseAuthError(error, authMode));
     } finally {
       setIsSubmitting(false);
     }
@@ -198,8 +206,8 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 autoComplete="email"
                 required
-                aria-invalid={Boolean(errorMessage)}
-                aria-describedby={errorMessage ? ERROR_MESSAGE_ID : undefined}
+                aria-invalid={fieldError?.field === 'email'}
+                aria-describedby={fieldError?.field === 'email' ? ERROR_MESSAGE_ID : undefined}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
               />
             </div>
@@ -214,8 +222,8 @@ export default function LoginPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete={authMode === 'signUp' ? 'new-password' : 'current-password'}
                 required
-                aria-invalid={Boolean(errorMessage)}
-                aria-describedby={errorMessage ? ERROR_MESSAGE_ID : undefined}
+                aria-invalid={fieldError?.field === 'password'}
+                aria-describedby={fieldError?.field === 'password' ? ERROR_MESSAGE_ID : undefined}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
               />
             </div>
@@ -231,8 +239,8 @@ export default function LoginPage() {
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   autoComplete="new-password"
                   required
-                  aria-invalid={Boolean(errorMessage)}
-                  aria-describedby={errorMessage ? ERROR_MESSAGE_ID : undefined}
+                  aria-invalid={fieldError?.field === 'confirmPassword'}
+                  aria-describedby={fieldError?.field === 'confirmPassword' ? ERROR_MESSAGE_ID : undefined}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
                 />
               </div>
@@ -246,13 +254,13 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {errorMessage && (
+          {fieldError && (
             <div
               id={ERROR_MESSAGE_ID}
               role="alert"
               className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
             >
-              {errorMessage}
+              {fieldError.message}
             </div>
           )}
 
