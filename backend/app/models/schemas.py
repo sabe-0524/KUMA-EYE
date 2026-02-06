@@ -259,3 +259,24 @@ class HealthResponse(BaseModel):
     status: str
     database: str
     redis: str
+
+
+# =============================================================================
+# User
+# =============================================================================
+
+class UserResponse(BaseModel):
+    id: int
+    firebase_uid: str
+    email: str
+    name: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class UserSyncResponse(BaseModel):
+    user: UserResponse
+    created: bool

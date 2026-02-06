@@ -41,6 +41,7 @@ python-dotenv>=1.0.0
 
 # Firebase Admin SDK
 firebase-admin>=6.4.0
+google-auth>=2.29.0
 
 # Google Cloud Storage
 google-cloud-storage>=2.14.0

@@ -115,6 +115,21 @@ export interface AlertCount {
   critical: number;
 }
 
+// ユーザー
+export interface UserProfile {
+  id: number;
+  firebase_uid: string;
+  email: string;
+  name?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface UserSyncResponse {
+  user: UserProfile;
+  created: boolean;
+}
+
 // 統計
 export interface SightingStatistics {
   total_sightings: number;
