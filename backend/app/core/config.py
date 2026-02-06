@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     ALLOWED_IMAGE_TYPES: str = "image/jpeg,image/png"
     ALLOWED_VIDEO_TYPES: str = "video/mp4,video/quicktime,video/x-msvideo"
     
+    # SMTP (Email)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+    SMTP_USE_TLS: bool = True
+
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
     
