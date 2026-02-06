@@ -4,6 +4,11 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '@/shared/lib/firebase';
 import { getMyProfile, syncCurrentUser, updateMyLocation } from '@/shared/api';
+import {
+  getCurrentPositionWithFallback,
+  isGeolocationPositionError,
+  startWatchPositionWithFallback,
+} from '@/shared/lib/geolocation';
 import type { UserProfile } from '@/shared/types';
 
 const LOCATION_SYNC_INTERVAL_MS = 30_000;
@@ -50,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [locationSyncStatus, setLocationSyncStatus] = useState<LocationSyncStatus>('idle');
   const [locationSyncError, setLocationSyncError] = useState<string | null>(null);
   const lastSyncedUidRef = useRef<string | null>(null);
-  const watchIdRef = useRef<number | null>(null);
+  const watchStopRef = useRef<(() => void) | null>(null);
   const lastSentCoordinatesRef = useRef<Coordinates | null>(null);
   const lastSentAtRef = useRef<number>(0);
   const sendingLocationRef = useRef(false);
@@ -60,10 +65,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const stopLocationWatch = useCallback(() => {
-    if (watchIdRef.current !== null && typeof window !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
+    if (watchStopRef.current) {
+      watchStopRef.current();
     }
-    watchIdRef.current = null;
+    watchStopRef.current = null;
     lastSentCoordinatesRef.current = null;
     lastSentAtRef.current = 0;
     sendingLocationRef.current = false;
@@ -173,35 +178,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    if (watchIdRef.current !== null) {
+    if (watchStopRef.current) {
       return;
     }
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        void syncLocationIfNeeded({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          setLocationSyncStatus('permission_denied');
-          setLocationSyncError('位置情報の共有が許可されていません。');
-        } else {
-          setLocationSyncStatus('error');
-          setLocationSyncError('位置情報の取得に失敗しました。');
-        }
+    const handlePosition = (position: GeolocationPosition) => {
+      void syncLocationIfNeeded({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+    };
+
+    watchStopRef.current = startWatchPositionWithFallback({
+      onSuccess: handlePosition,
+      onPermissionDenied: () => {
+        setLocationSyncStatus('permission_denied');
+        setLocationSyncError('位置情報の共有が許可されていません。');
         stopLocationWatch();
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 30000,
-      }
-    );
+      onError: () => {
+        setLocationSyncStatus('error');
+        setLocationSyncError('位置情報の取得に失敗しました。');
+      },
+    });
+
+    void getCurrentPositionWithFallback()
+      .then(handlePosition)
+      .catch((error) => {
+        if (isGeolocationPositionError(error) && error.code === error.PERMISSION_DENIED) {
+          setLocationSyncStatus('permission_denied');
+          setLocationSyncError('位置情報の共有が許可されていません。');
+          stopLocationWatch();
+        }
+      });
+
     setLocationSyncStatus('watching');
     setLocationSyncError(null);
+    return () => {
+      stopLocationWatch();
+    };
   }, [user, profile?.email_opt_in, stopLocationWatch, syncLocationIfNeeded]);
 
   const signInWithGoogle = async () => {

@@ -14,6 +14,7 @@ import type { LatLngBoundsExpression } from 'leaflet';
 import { getSightings, getFullImageUrl } from '@/shared/api';
 import type { DisplayMode, Sighting } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
+import { getCurrentPositionWithFallback } from '@/shared/lib/geolocation';
 import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
 
@@ -314,6 +315,8 @@ export const MapView: React.FC<MapViewProps> = ({
   }, [refreshTrigger, fetchSightings]);
 
   useEffect(() => {
+    let isActive = true;
+
     if (displayMode !== 'nearby') {
       setLocationStatus('idle');
       setCurrentLocation(null);
@@ -325,23 +328,23 @@ export const MapView: React.FC<MapViewProps> = ({
       return;
     }
     setLocationStatus('requesting');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+    getCurrentPositionWithFallback()
+      .then((position) => {
+        if (!isActive) return;
         setCurrentLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
         setLocationStatus('granted');
-      },
-      () => {
+      })
+      .catch(() => {
+        if (!isActive) return;
         setLocationStatus('manual');
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 30000,
-      }
-    );
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, [displayMode]);
 
   const selectedCenter = useMemo(
