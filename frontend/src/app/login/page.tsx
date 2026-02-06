@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { FirebaseError } from 'firebase/app';
 import { useAuth } from '@/shared/providers/AuthProvider';
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// NOTE: クライアント側では簡易チェックのみを行い、最終的な検証は Firebase 側に委ねる。
+const EMAIL_PATTERN = /^(?!.*\.\.)(?!.*\.$)[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ERROR_MESSAGE_ID = 'auth-form-error-message';
 
 type AuthMode = 'signIn' | 'signUp';
 
@@ -16,28 +18,27 @@ const getFirebaseAuthErrorMessage = (error: unknown, mode: AuthMode): string => 
       : 'ログインに失敗しました。時間をおいて再度お試しください。';
   }
 
+  if (error.code === 'auth/invalid-email') {
+    return 'メールアドレスの形式が正しくありません。';
+  }
+  if (error.code === 'auth/too-many-requests') {
+    return '試行回数が多すぎます。しばらく待ってからお試しください。';
+  }
+
   if (mode === 'signIn') {
     switch (error.code) {
-      case 'auth/invalid-email':
-        return 'メールアドレスの形式が正しくありません。';
       case 'auth/invalid-credential':
         return 'メールアドレスまたはパスワードが正しくありません。';
-      case 'auth/too-many-requests':
-        return '試行回数が多すぎます。しばらく待ってからお試しください。';
       default:
         return 'ログインに失敗しました。時間をおいて再度お試しください。';
     }
   }
 
   switch (error.code) {
-    case 'auth/invalid-email':
-      return 'メールアドレスの形式が正しくありません。';
     case 'auth/email-already-in-use':
       return 'このメールアドレスは既に登録されています。';
     case 'auth/weak-password':
       return 'パスワードが弱すぎます。より強いパスワードを設定してください。';
-    case 'auth/too-many-requests':
-      return '試行回数が多すぎます。しばらく待ってからお試しください。';
     default:
       return '新規登録に失敗しました。時間をおいて再度お試しください。';
   }
@@ -64,6 +65,8 @@ export default function LoginPage() {
       return;
     }
     setAuthMode(mode);
+    setPassword('');
+    setConfirmPassword('');
     setErrorMessage('');
   };
 
@@ -100,6 +103,10 @@ export default function LoginPage() {
     }
 
     if (authMode === 'signUp') {
+      if (password.length < 6) {
+        setErrorMessage('パスワードは6文字以上で入力してください。');
+        return;
+      }
       if (!confirmPassword) {
         setErrorMessage('確認用パスワードを入力してください。');
         return;
@@ -190,6 +197,9 @@ export default function LoginPage() {
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
                 autoComplete="email"
+                required
+                aria-invalid={Boolean(errorMessage)}
+                aria-describedby={errorMessage ? ERROR_MESSAGE_ID : undefined}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
               />
             </div>
@@ -203,6 +213,9 @@ export default function LoginPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete={authMode === 'signUp' ? 'new-password' : 'current-password'}
+                required
+                aria-invalid={Boolean(errorMessage)}
+                aria-describedby={errorMessage ? ERROR_MESSAGE_ID : undefined}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
               />
             </div>
@@ -217,6 +230,9 @@ export default function LoginPage() {
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   autoComplete="new-password"
+                  required
+                  aria-invalid={Boolean(errorMessage)}
+                  aria-describedby={errorMessage ? ERROR_MESSAGE_ID : undefined}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
                 />
               </div>
@@ -231,7 +247,11 @@ export default function LoginPage() {
           </form>
 
           {errorMessage && (
-            <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div
+              id={ERROR_MESSAGE_ID}
+              role="alert"
+              className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
               {errorMessage}
             </div>
           )}
