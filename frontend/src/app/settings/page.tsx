@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, RefreshCw, Settings } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
@@ -19,7 +19,7 @@ export default function SettingsPage() {
     return user?.displayName || '-';
   }, [profile?.name, user?.displayName]);
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     if (!user) {
       return;
     }
@@ -36,7 +36,7 @@ export default function SettingsPage() {
     } finally {
       setIsFetching(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -45,9 +45,9 @@ export default function SettingsPage() {
     }
 
     if (user) {
-      loadProfile();
+      void loadProfile();
     }
-  }, [loading, user, router]);
+  }, [loading, user, router, loadProfile]);
 
   if (loading) {
     return (
@@ -87,7 +87,9 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-lg font-semibold text-slate-900">アカウント情報</h2>
             <button
-              onClick={loadProfile}
+              onClick={() => {
+                void loadProfile();
+              }}
               disabled={isFetching}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60"
             >

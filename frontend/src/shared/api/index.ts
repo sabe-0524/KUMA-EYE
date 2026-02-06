@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_ENDPOINTS, API_BASE_URL } from '@/shared/lib/config';
+import { API_BASE_URL } from '@/shared/lib/config';
 import { auth } from '@/shared/lib/firebase';
 import type {
   Camera,
@@ -24,6 +24,20 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+const USER_ENDPOINTS_WITHOUT_REDIRECT = ['/users/sync', '/users/me'] as const;
+
+const shouldSkipAuthRedirect = (url: string): boolean =>
+  USER_ENDPOINTS_WITHOUT_REDIRECT.some((endpoint) => url.includes(endpoint));
+
+const withAuthHeader = (idToken?: string) =>
+  idToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      }
+    : undefined;
 
 // リクエストインターセプター: Firebase認証トークンを自動付与
 apiClient.interceptors.request.use(
@@ -50,8 +64,7 @@ apiClient.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const requestUrl: string = error.config?.url || '';
-    const isUserSyncRequest =
-      requestUrl.includes('/users/sync') || requestUrl.includes('/users/me');
+    const isUserSyncRequest = shouldSkipAuthRedirect(requestUrl);
 
     if (status === 401 && !isUserSyncRequest) {
       // 認証エラーの場合、ログインページにリダイレクト
@@ -254,13 +267,7 @@ export const syncCurrentUser = async (idToken?: string): Promise<UserSyncRespons
   const response = await apiClient.post<UserSyncResponse>(
     '/users/sync',
     undefined,
-    idToken
-      ? {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      : undefined
+    withAuthHeader(idToken)
   );
   return response.data;
 };
@@ -268,13 +275,7 @@ export const syncCurrentUser = async (idToken?: string): Promise<UserSyncRespons
 export const getMyProfile = async (idToken?: string): Promise<UserProfile> => {
   const response = await apiClient.get<UserProfile>(
     '/users/me',
-    idToken
-      ? {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      : undefined
+    withAuthHeader(idToken)
   );
   return response.data;
 };

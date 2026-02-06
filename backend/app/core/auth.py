@@ -1,8 +1,9 @@
 """
 Firebase Authentication Middleware for FastAPI
 """
+import logging
 import os
-from typing import Optional
+from typing import Any, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import firebase_admin
@@ -11,6 +12,8 @@ from google.auth.exceptions import DefaultCredentialsError
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.oauth2 import id_token as google_id_token
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Firebase Admin SDK初期化
 _firebase_initialized = False
@@ -40,9 +43,9 @@ def initialize_firebase():
             firebase_admin.initialize_app(options=options or None)
         
         _firebase_initialized = True
-        print("✅ Firebase Admin SDK initialized successfully")
+        logger.info("Firebase Admin SDK initialized successfully")
     except Exception as e:
-        print(f"⚠️ Firebase Admin SDK initialization error: {e}")
+        logger.warning("Firebase Admin SDK initialization error: %s", e)
         # 初期化に失敗してもアプリケーションは起動する（開発環境用）
 
 
@@ -75,6 +78,50 @@ def _verify_id_token_with_public_keys(token: str):
     )
 
 
+def _is_default_credentials_error(error: Exception) -> bool:
+    """例外チェーンをたどってADC不足由来か判定する"""
+    if isinstance(error, DefaultCredentialsError):
+        return True
+
+    if "default credentials were not found" in str(error).lower():
+        return True
+
+    cause = getattr(error, "__cause__", None)
+    if isinstance(cause, Exception):
+        return _is_default_credentials_error(cause)
+
+    return False
+
+
+def _verify_with_public_key_fallback(token: str, error: Exception) -> dict[str, Any]:
+    """ADCが使えない環境向けに公開鍵検証でフォールバックする"""
+    if settings.DEBUG:
+        logger.warning("ADC not found. Fallback to public key verification: %s", error)
+
+    try:
+        decoded_token = _verify_id_token_with_public_keys(token)
+    except ValueError as fallback_error:
+        logger.warning("Invalid Firebase token (fallback): %s", fallback_error)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Firebase token"
+        )
+    except Exception as fallback_error:
+        logger.warning("Firebase fallback verification failed: %s", fallback_error)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed"
+        )
+
+    if not decoded_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Firebase token"
+        )
+
+    return decoded_token
+
+
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> FirebaseUser:
@@ -92,7 +139,7 @@ async def get_current_user(
     """
     if not credentials:
         if settings.DEBUG:
-            print("⚠️ Missing Authorization header")
+            logger.warning("Missing Authorization header")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
@@ -103,67 +150,23 @@ async def get_current_user(
     try:
         # Firebase IDトークンを検証
         decoded_token = auth.verify_id_token(token)
-    except DefaultCredentialsError as e:
-        # ローカルでADCが無い場合は公開鍵検証にフォールバック
-        if settings.DEBUG:
-            print(f"⚠️ ADC not found. Fallback to public key verification: {e}")
-        try:
-            decoded_token = _verify_id_token_with_public_keys(token)
-            if not decoded_token:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid Firebase token"
-                )
-        except ValueError as ve:
-            print(f"⚠️ Invalid Firebase token (fallback): {ve}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid Firebase token"
-            )
-        except Exception as fe:
-            print(f"⚠️ Firebase fallback verification failed: {fe}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication failed"
-            )
     except auth.InvalidIdTokenError as e:
-        print(f"⚠️ Invalid Firebase token: {e}")
+        logger.warning("Invalid Firebase token: %s", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Firebase token"
         )
     except auth.ExpiredIdTokenError as e:
-        print(f"⚠️ Expired Firebase token: {e}")
+        logger.warning("Expired Firebase token: %s", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Expired Firebase token"
         )
     except Exception as e:
-        # 一部環境でDefaultCredentialsErrorがラップされるケースを救済
-        if "default credentials were not found" in str(e).lower():
-            if settings.DEBUG:
-                print(f"⚠️ ADC error wrapped. Fallback to public key verification: {e}")
-            try:
-                decoded_token = _verify_id_token_with_public_keys(token)
-                if not decoded_token:
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Invalid Firebase token"
-                    )
-            except ValueError as ve:
-                print(f"⚠️ Invalid Firebase token (fallback): {ve}")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid Firebase token"
-                )
-            except Exception as fe:
-                print(f"⚠️ Firebase fallback verification failed: {fe}")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication failed"
-                )
+        if _is_default_credentials_error(e):
+            decoded_token = _verify_with_public_key_fallback(token, e)
         else:
-            print(f"⚠️ Firebase token verification failed: {e}")
+            logger.warning("Firebase token verification failed: %s", e)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Authentication failed"
@@ -180,14 +183,14 @@ async def get_current_user(
     name = decoded_token.get("name") or decoded_token.get("display_name")
 
     if not uid:
-        print(f"⚠️ Firebase token missing uid claims. keys={list(decoded_token.keys())}")
+        logger.warning("Firebase token missing uid claims. keys=%s", list(decoded_token.keys()))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Firebase token"
         )
 
     if settings.DEBUG:
-        print(f"✅ Firebase token verified: uid={uid}, email={email}")
+        logger.info("Firebase token verified: uid=%s, email=%s", uid, email)
 
     return FirebaseUser(uid=uid, email=email, name=name)
 
