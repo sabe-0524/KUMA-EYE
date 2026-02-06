@@ -8,7 +8,7 @@ import { CameraRegisterPanel } from '@/features/camera-register';
 import { AlertPanel } from '@/widgets/alert-panel';
 import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
-import type { Alert, Sighting } from '@/shared/types';
+import type { Alert, DisplayMode, Sighting } from '@/shared/types';
 
 // SSRを無効化してMapViewを読み込む（Leafletはクライアントサイドのみ）
 const MapView = dynamic(
@@ -24,7 +24,6 @@ const MapView = dynamic(
 );
 
 type ActivePanel = 'upload' | 'alerts' | 'camera' | null;
-type DisplayMode = 'national' | 'nearby';
 
 export default function HomePage() {
   const { user, loading, logout } = useAuth();

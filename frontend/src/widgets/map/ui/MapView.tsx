@@ -12,7 +12,7 @@ import {
 } from 'react-leaflet';
 import type { LatLngBoundsExpression } from 'leaflet';
 import { getSightings, getFullImageUrl } from '@/shared/api';
-import type { Sighting } from '@/shared/types';
+import type { DisplayMode, Sighting } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
 import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
@@ -28,7 +28,6 @@ const MIN_ZOOM_JAPAN = 5;
 const NEARBY_ZOOM = 12;
 const NEARBY_RADIUS_KM = 20;
 
-type DisplayMode = 'national' | 'nearby';
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'manual';
 type LatLng = { lat: number; lng: number };
 

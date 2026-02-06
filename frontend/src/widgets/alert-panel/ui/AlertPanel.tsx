@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Bell, CheckCircle, AlertTriangle, X } from 'lucide-react';
 import { getUnacknowledgedAlerts, acknowledgeAlert, getAlertCount, getFullImageUrl } from '@/shared/api';
-import type { Alert, AlertCount } from '@/shared/types';
+import type { Alert, AlertCount, DisplayMode } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis, alertLevelColors } from '@/shared/types';
 import { formatDateTime, getRelativeTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
@@ -11,7 +11,7 @@ import { ImageModal } from '@/shared/ui';
 interface AlertPanelProps {
   refreshInterval?: number;
   onAlertClick?: (alert: Alert) => void;
-  displayMode?: 'national' | 'nearby';
+  displayMode?: DisplayMode;
   nearbyBounds?: string | null;
 }
 
@@ -47,7 +47,7 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
       }
     : alertCount;
 
-  const fetchAlerts = async () => {
+  const fetchAlerts = useCallback(async () => {
     try {
       const [alertsResponse, countResponse] = await Promise.all([
         getUnacknowledgedAlerts(20),
@@ -60,13 +60,13 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAlerts();
     const interval = setInterval(fetchAlerts, refreshInterval);
     return () => clearInterval(interval);
-  }, [refreshInterval]);
+  }, [fetchAlerts, refreshInterval]);
 
   const handleAcknowledge = async (alertId: number, e: React.MouseEvent) => {
     e.stopPropagation();
