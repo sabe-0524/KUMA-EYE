@@ -20,10 +20,15 @@ export default function SettingsPage() {
   }, [profile?.name, user?.displayName]);
 
   const loadProfile = async () => {
+    if (!user) {
+      return;
+    }
+
     setIsFetching(true);
     setError(null);
     try {
-      const data = await getMyProfile();
+      const idToken = await user.getIdToken();
+      const data = await getMyProfile(idToken);
       setProfile(data);
     } catch (e) {
       console.error('プロフィール取得エラー:', e);

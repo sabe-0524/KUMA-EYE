@@ -48,7 +48,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const requestUrl: string = error.config?.url || '';
+    const isUserSyncRequest =
+      requestUrl.includes('/users/sync') || requestUrl.includes('/users/me');
+
+    if (status === 401 && !isUserSyncRequest) {
       // 認証エラーの場合、ログインページにリダイレクト
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
@@ -260,8 +265,17 @@ export const syncCurrentUser = async (idToken?: string): Promise<UserSyncRespons
   return response.data;
 };
 
-export const getMyProfile = async (): Promise<UserProfile> => {
-  const response = await apiClient.get<UserProfile>('/users/me');
+export const getMyProfile = async (idToken?: string): Promise<UserProfile> => {
+  const response = await apiClient.get<UserProfile>(
+    '/users/me',
+    idToken
+      ? {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      : undefined
+  );
   return response.data;
 };
 

@@ -80,7 +80,7 @@ def get_my_profile(
 ):
     """自分のユーザー情報を取得（未登録なら同期して返す）"""
     db_user = db.query(User).filter(User.firebase_uid == current_user.uid).first()
-    if not db_user:
+    if not db_user or not db_user.email:
         db_user, _ = sync_user_from_firebase(db, current_user)
 
     return UserResponse.model_validate(db_user)
