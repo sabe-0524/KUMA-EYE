@@ -12,7 +12,7 @@ import {
 } from 'react-leaflet';
 import type { LatLngBoundsExpression } from 'leaflet';
 import { getSightings, getFullImageUrl } from '@/shared/api';
-import type { Sighting } from '@/shared/types';
+import type { DisplayMode, Sighting } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
 import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
@@ -28,7 +28,6 @@ const MIN_ZOOM_JAPAN = 5;
 const NEARBY_ZOOM = 12;
 const NEARBY_RADIUS_KM = 20;
 
-type DisplayMode = 'national' | 'nearby';
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'manual';
 type LatLng = { lat: number; lng: number };
 
@@ -36,6 +35,7 @@ interface MapViewProps {
   onSightingSelect?: (sighting: Sighting) => void;
   refreshInterval?: number;
   refreshTrigger?: number;
+  onDisplayContextChange?: (context: { mode: DisplayMode; bounds: string | null }) => void;
 }
 
 // マーカーを表示するサブコンポーネント
@@ -257,7 +257,8 @@ const MapController: React.FC<{
 export const MapView: React.FC<MapViewProps> = ({ 
   onSightingSelect,
   refreshInterval = 30000,
-  refreshTrigger = 0
+  refreshTrigger = 0,
+  onDisplayContextChange,
 }) => {
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [loading, setLoading] = useState(true);
@@ -347,6 +348,17 @@ export const MapView: React.FC<MapViewProps> = ({
     () => currentLocation ?? manualLocation,
     [currentLocation, manualLocation]
   );
+  const nearbyBounds = useMemo(
+    () => (selectedCenter ? getBoundsFromCenter(selectedCenter, NEARBY_RADIUS_KM) : null),
+    [selectedCenter]
+  );
+
+  useEffect(() => {
+    onDisplayContextChange?.({
+      mode: displayMode,
+      bounds: displayMode === 'nearby' ? nearbyBounds : null,
+    });
+  }, [displayMode, nearbyBounds, onDisplayContextChange]);
 
   const handleImageClick = useCallback((url: string) => {
     setSelectedImage(url);

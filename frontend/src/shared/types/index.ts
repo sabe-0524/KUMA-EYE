@@ -3,6 +3,7 @@
 export type AlertLevel = 'critical' | 'warning' | 'caution' | 'low';
 export type UploadStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type FileType = 'video' | 'image';
+export type DisplayMode = 'national' | 'nearby';
 
 // カメラ
 export interface Camera {

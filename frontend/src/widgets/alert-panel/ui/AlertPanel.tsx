@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Bell, CheckCircle, AlertTriangle, X } from 'lucide-react';
 import { getUnacknowledgedAlerts, acknowledgeAlert, getAlertCount, getFullImageUrl } from '@/shared/api';
-import type { Alert, AlertCount } from '@/shared/types';
+import type { Alert, AlertCount, DisplayMode } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis, alertLevelColors } from '@/shared/types';
 import { formatDateTime, getRelativeTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
@@ -11,18 +11,43 @@ import { ImageModal } from '@/shared/ui';
 interface AlertPanelProps {
   refreshInterval?: number;
   onAlertClick?: (alert: Alert) => void;
+  displayMode?: DisplayMode;
+  nearbyBounds?: string | null;
 }
 
 export const AlertPanel: React.FC<AlertPanelProps> = ({
   refreshInterval = 10000,
   onAlertClick,
+  displayMode = 'national',
+  nearbyBounds = null,
 }) => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [alertCount, setAlertCount] = useState<AlertCount>({ unacknowledged: 0, critical: 0 });
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const fetchAlerts = async () => {
+  const isWithinBounds = (lat: number, lng: number, bounds: string): boolean => {
+    const [swLat, swLng, neLat, neLng] = bounds.split(',').map(Number);
+    if ([swLat, swLng, neLat, neLng].some(Number.isNaN)) {
+      return false;
+    }
+    return lat >= swLat && lat <= neLat && lng >= swLng && lng <= neLng;
+  };
+
+  const filteredAlerts = alerts.filter((alert) => {
+    if (displayMode !== 'nearby') return true;
+    if (!nearbyBounds || !alert.sighting) return false;
+    return isWithinBounds(alert.sighting.latitude, alert.sighting.longitude, nearbyBounds);
+  });
+
+  const displayedCount = displayMode === 'nearby'
+    ? {
+        unacknowledged: filteredAlerts.length,
+        critical: filteredAlerts.filter((alert) => alert.alert_level === 'critical').length,
+      }
+    : alertCount;
+
+  const fetchAlerts = useCallback(async () => {
     try {
       const [alertsResponse, countResponse] = await Promise.all([
         getUnacknowledgedAlerts(20),
@@ -35,13 +60,13 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAlerts();
     const interval = setInterval(fetchAlerts, refreshInterval);
     return () => clearInterval(interval);
-  }, [refreshInterval]);
+  }, [fetchAlerts, refreshInterval]);
 
   const handleAcknowledge = async (alertId: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -66,16 +91,16 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
             <Bell className="w-5 h-5" />
             警報
           </h2>
-          {alertCount.unacknowledged > 0 && (
+          {displayedCount.unacknowledged > 0 && (
             <span className="px-2 py-1 bg-red-500/10 text-red-700 text-sm font-medium rounded-full border border-red-200/80">
-              {alertCount.unacknowledged}件
+              {displayedCount.unacknowledged}件
             </span>
           )}
         </div>
-        {alertCount.critical > 0 && (
+        {displayedCount.critical > 0 && (
           <div className="mt-2 text-sm text-red-600 flex items-center gap-1">
             <AlertTriangle className="w-4 h-4" />
-            危険レベル: {alertCount.critical}件
+            危険レベル: {displayedCount.critical}件
           </div>
         )}
       </div>
@@ -86,14 +111,14 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
           <div className="p-4 text-center text-slate-500">
             読み込み中...
           </div>
-        ) : alerts.length === 0 ? (
+        ) : filteredAlerts.length === 0 ? (
           <div className="p-8 text-center">
             <CheckCircle className="w-12 h-12 mx-auto text-green-500 mb-2" />
             <p className="text-slate-600">未確認の警報はありません</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {alerts.map((alert) => (
+            {filteredAlerts.map((alert) => (
               <div
                 key={alert.id}
                 className="p-3 hover:bg-slate-50/80 cursor-pointer transition-colors"
