@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { UploadPanel } from '@/features/upload-footage';
 import { CameraRegisterPanel } from '@/features/camera-register';
 import { AlertPanel } from '@/widgets/alert-panel';
-import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut } from 'lucide-react';
+import { X, Upload, Bell, RefreshCw, Camera, LogOut } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
 import type { Alert, DisplayMode, Sighting } from '@/shared/types';
 
@@ -24,6 +24,7 @@ const MapView = dynamic(
 );
 
 type ActivePanel = 'upload' | 'alerts' | 'camera' | null;
+type CameraPlacementLocation = { lat: number; lng: number };
 
 export default function HomePage() {
   const { user, loading, logout } = useAuth();
@@ -32,6 +33,9 @@ export default function HomePage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('national');
   const [nearbyBounds, setNearbyBounds] = useState<string | null>(null);
+  const [isCameraPlacementMode, setIsCameraPlacementMode] = useState(false);
+  const [selectedCameraLocation, setSelectedCameraLocation] =
+    useState<CameraPlacementLocation | null>(null);
 
   // 未認証の場合はログインページにリダイレクト
   useEffect(() => {
@@ -163,6 +167,9 @@ export default function HomePage() {
             onSightingSelect={handleSightingClick}
             refreshTrigger={refreshTrigger}
             onDisplayContextChange={handleDisplayContextChange}
+            cameraPlacementMode={isCameraPlacementMode}
+            cameraPlacementLocation={selectedCameraLocation}
+            onCameraPlacementSelect={setSelectedCameraLocation}
           />
         </div>
 
@@ -203,7 +210,13 @@ export default function HomePage() {
                 )}
                 {activePanel === 'camera' && (
                   <div className="p-4">
-                    <CameraRegisterPanel onRegisterComplete={refreshMap} />
+                    <CameraRegisterPanel
+                      onRegisterComplete={refreshMap}
+                      placementMode={isCameraPlacementMode}
+                      selectedLocation={selectedCameraLocation}
+                      onPlacementModeChange={setIsCameraPlacementMode}
+                      onClearSelectedLocation={() => setSelectedCameraLocation(null)}
+                    />
                   </div>
                 )}
                 {activePanel === 'alerts' && (

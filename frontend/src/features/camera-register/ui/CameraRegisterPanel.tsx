@@ -5,12 +5,22 @@ import { MapPin, Camera, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { createCamera, getCameras } from '@/shared/api';
 import type { Camera as CameraType } from '@/shared/types';
 
+type CameraPlacementLocation = { lat: number; lng: number };
+
 interface CameraRegisterPanelProps {
   onRegisterComplete?: () => void;
+  placementMode: boolean;
+  selectedLocation: CameraPlacementLocation | null;
+  onPlacementModeChange: (enabled: boolean) => void;
+  onClearSelectedLocation: () => void;
 }
 
 export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
   onRegisterComplete,
+  placementMode,
+  selectedLocation,
+  onPlacementModeChange,
+  onClearSelectedLocation,
 }) => {
   const [name, setName] = useState('');
   const [latitude, setLatitude] = useState('');
@@ -36,6 +46,13 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
     };
     fetchCameras();
   }, [success]);
+
+  useEffect(() => {
+    if (!selectedLocation) return;
+    setLatitude(selectedLocation.lat.toFixed(6));
+    setLongitude(selectedLocation.lng.toFixed(6));
+    setError(null);
+  }, [selectedLocation]);
 
   // 現在地を取得
   const getCurrentLocation = () => {
@@ -97,6 +114,8 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
       setLatitude('');
       setLongitude('');
       setDescription('');
+      onPlacementModeChange(false);
+      onClearSelectedLocation();
       onRegisterComplete?.();
 
       // 3秒後に成功メッセージを消す
@@ -138,15 +157,50 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
             <label className="block text-sm font-medium text-slate-700">
               位置情報 <span className="text-red-500">*</span>
             </label>
-            <button
-              type="button"
-              onClick={getCurrentLocation}
-              className="text-sm text-amber-700 hover:text-amber-800 flex items-center gap-1"
-            >
-              <MapPin className="w-4 h-4" />
-              現在地を取得
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onPlacementModeChange(!placementMode)}
+                className={`text-sm flex items-center gap-1 ${
+                  placementMode
+                    ? 'text-emerald-700 hover:text-emerald-800'
+                    : 'text-slate-600 hover:text-slate-700'
+                }`}
+              >
+                <MapPin className="w-4 h-4" />
+                {placementMode ? '設置モード: ON' : '地図クリックで設置'}
+              </button>
+              <button
+                type="button"
+                onClick={getCurrentLocation}
+                className="text-sm text-amber-700 hover:text-amber-800 flex items-center gap-1"
+              >
+                <MapPin className="w-4 h-4" />
+                現在地を取得
+              </button>
+            </div>
           </div>
+
+          {placementMode && (
+            <div className="text-sm bg-emerald-500/10 text-emerald-800 px-3 py-2 rounded-lg border border-emerald-200/80">
+              設置モード中です。メイン地図をクリックして設置地点を選択してください。
+            </div>
+          )}
+
+          {selectedLocation && (
+            <div className="flex items-center justify-between text-xs bg-slate-100/80 text-slate-700 px-3 py-2 rounded-lg border border-slate-200/80">
+              <span>
+                選択地点: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+              </span>
+              <button
+                type="button"
+                onClick={onClearSelectedLocation}
+                className="text-slate-600 hover:text-slate-800"
+              >
+                クリア
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
