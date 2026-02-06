@@ -5,6 +5,10 @@ export type UploadStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type FileType = 'video' | 'image';
 export type DisplayMode = 'national' | 'nearby';
 export type TimeRange = '1d' | '7d' | '30d';
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
 
 // カメラ
 export interface Camera {
@@ -114,6 +118,21 @@ export interface AlertListResponse {
 export interface AlertCount {
   unacknowledged: number;
   critical: number;
+}
+
+// ユーザー
+export interface UserProfile {
+  id: number;
+  firebase_uid: string;
+  email: string;
+  name?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface UserSyncResponse {
+  user: UserProfile;
+  created: boolean;
 }
 
 // 統計

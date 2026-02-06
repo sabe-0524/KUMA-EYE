@@ -13,7 +13,7 @@ import {
 import type { LatLngBoundsExpression } from 'leaflet';
 import { getSightings, getFullImageUrl } from '@/shared/api';
 import { getRangeStartIso } from '@/shared/lib/timeRange';
-import type { DisplayMode, Sighting, TimeRange } from '@/shared/types';
+import type { DisplayMode, LatLng, Sighting, TimeRange } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
 import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
@@ -30,7 +30,6 @@ const NEARBY_ZOOM = 12;
 const NEARBY_RADIUS_KM = 20;
 
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'manual';
-type LatLng = { lat: number; lng: number };
 
 interface MapViewProps {
   onSightingSelect?: (sighting: Sighting) => void;
@@ -38,6 +37,9 @@ interface MapViewProps {
   refreshTrigger?: number;
   timeRange: TimeRange;
   onDisplayContextChange?: (context: { mode: DisplayMode; bounds: string | null }) => void;
+  cameraPlacementMode?: boolean;
+  cameraPlacementLocation?: LatLng | null;
+  onCameraPlacementSelect?: (location: LatLng) => void;
 }
 
 // マーカーを表示するサブコンポーネント
@@ -227,12 +229,16 @@ const MapController: React.FC<{
   locationStatus: LocationStatus;
   currentLocation: LatLng | null;
   manualLocation: LatLng | null;
+  cameraPlacementMode: boolean;
+  onCameraPlacementSelect?: (location: LatLng) => void;
   onManualLocationSelect: (location: LatLng) => void;
 }> = ({
   displayMode,
   locationStatus,
   currentLocation,
   manualLocation,
+  cameraPlacementMode,
+  onCameraPlacementSelect,
   onManualLocationSelect,
 }) => {
   const map = useMap();
@@ -246,6 +252,11 @@ const MapController: React.FC<{
 
   useMapEvents({
     click: (event) => {
+      if (cameraPlacementMode) {
+        const location = { lat: event.latlng.lat, lng: event.latlng.lng };
+        onCameraPlacementSelect?.(location);
+        return;
+      }
       if (locationStatus !== 'manual' || displayMode !== 'nearby') return;
       const location = { lat: event.latlng.lat, lng: event.latlng.lng };
       onManualLocationSelect(location);
@@ -262,6 +273,9 @@ export const MapView: React.FC<MapViewProps> = ({
   refreshTrigger = 0,
   timeRange,
   onDisplayContextChange,
+  cameraPlacementMode = false,
+  cameraPlacementLocation = null,
+  onCameraPlacementSelect,
 }) => {
   const [sightings, setSightings] = useState<Sighting[]>([]);
   const [loading, setLoading] = useState(true);
@@ -424,11 +438,29 @@ export const MapView: React.FC<MapViewProps> = ({
           currentLocation={currentLocation}
           manualLocation={manualLocation}
         />
+        {cameraPlacementLocation && (
+          <CircleMarker
+            center={[cameraPlacementLocation.lat, cameraPlacementLocation.lng]}
+            radius={8}
+            pathOptions={{
+              color: '#a16207',
+              fillColor: '#f59e0b',
+              fillOpacity: 0.95,
+              weight: 2,
+            }}
+          >
+            <Popup>
+              <div className="text-sm font-semibold">カメラ設置候補地点</div>
+            </Popup>
+          </CircleMarker>
+        )}
         <MapController
           displayMode={displayMode}
           locationStatus={locationStatus}
           currentLocation={currentLocation}
           manualLocation={manualLocation}
+          cameraPlacementMode={cameraPlacementMode}
+          onCameraPlacementSelect={onCameraPlacementSelect}
           onManualLocationSelect={setManualLocation}
         />
       </MapContainer>
@@ -438,6 +470,12 @@ export const MapView: React.FC<MapViewProps> = ({
       {displayMode === 'nearby' && locationStatus === 'manual' && !selectedCenter && (
         <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-amber-500/10 text-amber-800 px-4 py-2 rounded-lg border border-amber-200/80 shadow z-[1000] text-sm">
           位置情報が取得できません。地図をクリックして地点を指定してください。
+        </div>
+      )}
+
+      {cameraPlacementMode && (
+        <div className="absolute top-16 right-4 bg-amber-500/10 text-amber-800 px-4 py-2 rounded-lg border border-amber-200/80 shadow z-[1000] text-sm">
+          カメラ設置モード: 地図をクリックして設置地点を選択
         </div>
       )}
 

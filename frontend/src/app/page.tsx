@@ -6,9 +6,9 @@ import dynamic from 'next/dynamic';
 import { UploadPanel } from '@/features/upload-footage';
 import { CameraRegisterPanel } from '@/features/camera-register';
 import { AlertPanel } from '@/widgets/alert-panel';
-import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut } from 'lucide-react';
+import { X, Upload, Bell, RefreshCw, Camera, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
-import type { Alert, DisplayMode, Sighting, TimeRange } from '@/shared/types';
+import type { Alert, DisplayMode, LatLng, Sighting, TimeRange } from '@/shared/types';
 
 // SSRを無効化してMapViewを読み込む（Leafletはクライアントサイドのみ）
 const MapView = dynamic(
@@ -33,6 +33,9 @@ export default function HomePage() {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('national');
   const [nearbyBounds, setNearbyBounds] = useState<string | null>(null);
   const [selectedRange, setSelectedRange] = useState<TimeRange>('7d');
+  const [isCameraPlacementMode, setIsCameraPlacementMode] = useState(false);
+  const [selectedCameraLocation, setSelectedCameraLocation] =
+    useState<LatLng | null>(null);
 
   // 未認証の場合はログインページにリダイレクト
   useEffect(() => {
@@ -145,6 +148,13 @@ export default function HomePage() {
               <RefreshCw className="w-5 h-5" />
             </button>
             <button
+              onClick={() => router.push('/settings')}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              title="設定"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            <button
               onClick={() => togglePanel('camera')}
               className={`p-2 rounded-lg transition-colors ${
                 activePanel === 'camera' ? 'bg-white/15' : 'hover:bg-white/10'
@@ -191,6 +201,9 @@ export default function HomePage() {
             refreshTrigger={refreshTrigger}
             timeRange={selectedRange}
             onDisplayContextChange={handleDisplayContextChange}
+            cameraPlacementMode={isCameraPlacementMode}
+            cameraPlacementLocation={selectedCameraLocation}
+            onCameraPlacementSelect={setSelectedCameraLocation}
           />
         </div>
 
@@ -231,7 +244,13 @@ export default function HomePage() {
                 )}
                 {activePanel === 'camera' && (
                   <div className="p-4">
-                    <CameraRegisterPanel onRegisterComplete={refreshMap} />
+                    <CameraRegisterPanel
+                      onRegisterComplete={refreshMap}
+                      placementMode={isCameraPlacementMode}
+                      selectedLocation={selectedCameraLocation}
+                      onPlacementModeChange={setIsCameraPlacementMode}
+                      onClearSelectedLocation={() => setSelectedCameraLocation(null)}
+                    />
                   </div>
                 )}
                 {activePanel === 'alerts' && (
