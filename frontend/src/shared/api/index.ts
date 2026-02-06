@@ -13,6 +13,8 @@ import type {
   AlertCount,
   UploadResponse,
   UploadDetail,
+  UserProfile,
+  UserSyncResponse,
 } from '@/shared/types';
 
 // Axiosインスタンス
@@ -236,6 +238,30 @@ export const acknowledgeAllAlerts = async (acknowledgedBy?: string): Promise<{ a
   const response = await apiClient.put<{ acknowledged_count: number }>('/alerts/acknowledge-all', {
     acknowledged_by: acknowledgedBy,
   });
+  return response.data;
+};
+
+// =============================================================================
+// ユーザーAPI
+// =============================================================================
+
+export const syncCurrentUser = async (idToken?: string): Promise<UserSyncResponse> => {
+  const response = await apiClient.post<UserSyncResponse>(
+    '/users/sync',
+    undefined,
+    idToken
+      ? {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      : undefined
+  );
+  return response.data;
+};
+
+export const getMyProfile = async (): Promise<UserProfile> => {
+  const response = await apiClient.get<UserProfile>('/users/me');
   return response.data;
 };
 

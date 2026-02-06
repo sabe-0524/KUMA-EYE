@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { UploadPanel } from '@/features/upload-footage';
 import { CameraRegisterPanel } from '@/features/camera-register';
 import { AlertPanel } from '@/widgets/alert-panel';
-import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut } from 'lucide-react';
+import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
 import type { Alert, Sighting } from '@/shared/types';
 
@@ -109,6 +109,13 @@ export default function HomePage() {
               title="地図を更新"
             >
               <RefreshCw className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => router.push('/settings')}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              title="設定"
+            >
+              <Settings className="w-5 h-5" />
             </button>
             <button
               onClick={() => togglePanel('camera')}
