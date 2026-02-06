@@ -24,12 +24,15 @@ const MapView = dynamic(
 );
 
 type ActivePanel = 'upload' | 'alerts' | 'camera' | null;
+type DisplayMode = 'national' | 'nearby';
 
 export default function HomePage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('national');
+  const [nearbyBounds, setNearbyBounds] = useState<string | null>(null);
 
   // 未認証の場合はログインページにリダイレクト
   useEffect(() => {
@@ -59,6 +62,11 @@ export default function HomePage() {
   // 目撃情報クリック時
   const handleSightingClick = useCallback((sighting: Sighting) => {
     console.log('Selected sighting:', sighting);
+  }, []);
+
+  const handleDisplayContextChange = useCallback((context: { mode: DisplayMode; bounds: string | null }) => {
+    setDisplayMode(context.mode);
+    setNearbyBounds(context.bounds);
   }, []);
 
   const togglePanel = (panel: ActivePanel) => {
@@ -155,6 +163,7 @@ export default function HomePage() {
           <MapView
             onSightingSelect={handleSightingClick}
             refreshTrigger={refreshTrigger}
+            onDisplayContextChange={handleDisplayContextChange}
           />
         </div>
 
@@ -199,7 +208,11 @@ export default function HomePage() {
                   </div>
                 )}
                 {activePanel === 'alerts' && (
-                  <AlertPanel onAlertClick={handleAlertClick} />
+                  <AlertPanel
+                    onAlertClick={handleAlertClick}
+                    displayMode={displayMode}
+                    nearbyBounds={nearbyBounds}
+                  />
                 )}
               </div>
             </div>
