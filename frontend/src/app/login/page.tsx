@@ -1,12 +1,36 @@
 'use client';
 
-import { useEffect } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { FirebaseError } from 'firebase/app';
 import { useAuth } from '@/shared/providers/AuthProvider';
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const getFirebaseAuthErrorMessage = (error: unknown): string => {
+  if (!(error instanceof FirebaseError)) {
+    return 'ログインに失敗しました。時間をおいて再度お試しください。';
+  }
+
+  switch (error.code) {
+    case 'auth/invalid-email':
+      return 'メールアドレスの形式が正しくありません。';
+    case 'auth/invalid-credential':
+      return 'メールアドレスまたはパスワードが正しくありません。';
+    case 'auth/too-many-requests':
+      return '試行回数が多すぎます。しばらく待ってからお試しください。';
+    default:
+      return 'ログインに失敗しました。時間をおいて再度お試しください。';
+  }
+};
+
 export default function LoginPage() {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithEmailPassword } = useAuth();
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -16,9 +40,41 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     try {
+      setErrorMessage('');
       await signInWithGoogle();
     } catch (error) {
       console.error('ログイン失敗:', error);
+      setErrorMessage('Googleログインに失敗しました。時間をおいて再度お試しください。');
+    }
+  };
+
+  const handleEmailPasswordSignIn = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage('');
+
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
+      setErrorMessage('メールアドレスを入力してください。');
+      return;
+    }
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setErrorMessage('メールアドレスの形式が正しくありません。');
+      return;
+    }
+    if (!password) {
+      setErrorMessage('パスワードを入力してください。');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await signInWithEmailPassword(normalizedEmail, password);
+    } catch (error) {
+      console.error('ログイン失敗:', error);
+      setErrorMessage(getFirebaseAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -46,9 +102,61 @@ export default function LoginPage() {
           <p className="text-slate-600">
             ログインしてシステムにアクセス
           </p>
+          <p className="mt-2 text-sm text-slate-500">
+            Gmail以外のメールアドレスでもログインできます
+          </p>
         </div>
 
         <div className="mt-8">
+          <form onSubmit={handleEmailPasswordSignIn} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
+                メールアドレス
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
+                パスワード
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/60 focus:border-slate-300"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full px-4 py-3 text-base font-medium rounded-lg text-white bg-slate-800 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400/60 transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'ログイン中...' : 'メールアドレスでログイン'}
+            </button>
+          </form>
+
+          {errorMessage && (
+            <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          )}
+
+          <div className="my-6 flex items-center">
+            <div className="h-px flex-1 bg-slate-200"></div>
+            <span className="mx-3 text-xs text-slate-500">または</span>
+            <div className="h-px flex-1 bg-slate-200"></div>
+          </div>
+
           <button
             onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center px-4 py-3 border border-slate-200/80 text-base font-medium rounded-lg text-slate-800 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400/60 transition-colors duration-200 shadow-sm hover:shadow-md"

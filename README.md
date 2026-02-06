@@ -21,7 +21,7 @@
 | フロントエンド | Next.js 15.0.0 + React 18 + TypeScript | 3000 |
 | バックエンドAPI | FastAPI + Python 3.13 | 8000 |
 | データベース | Supabase (リモート接続) | - |
-| 認証 | Firebase Auth (Googleプロバイダ) | - |
+| 認証 | Firebase Auth (Google + Email/Password) | - |
 | ファイルストレージ | ローカル (`./backend/storage`) | - |
 
 ### デプロイ手順
@@ -160,7 +160,7 @@ make seed         # サンプルデータを投入
 ## 🎯 主な機能
 
 ### 🔐 認証機能
-- **Firebase Authentication**: Googleアカウントでログイン
+- **Firebase Authentication**: Googleアカウント + メールアドレス/パスワードでログイン
 - **JWT トークン認証**: APIアクセスの保護
 
 ### 📹 映像アップロード・熊検出
