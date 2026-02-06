@@ -3,14 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Camera, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { createCamera, getCameras } from '@/shared/api';
-import type { Camera as CameraType } from '@/shared/types';
-
-type CameraPlacementLocation = { lat: number; lng: number };
+import type { Camera as CameraType, LatLng } from '@/shared/types';
 
 interface CameraRegisterPanelProps {
   onRegisterComplete?: () => void;
   placementMode: boolean;
-  selectedLocation: CameraPlacementLocation | null;
+  selectedLocation: LatLng | null;
   onPlacementModeChange: (enabled: boolean) => void;
   onClearSelectedLocation: () => void;
 }
@@ -31,6 +29,12 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
   const [success, setSuccess] = useState(false);
   const [cameras, setCameras] = useState<CameraType[]>([]);
   const [isLoadingCameras, setIsLoadingCameras] = useState(true);
+
+  const clearSelectedLocationInputs = () => {
+    onClearSelectedLocation();
+    setLatitude('');
+    setLongitude('');
+  };
 
   // カメラ一覧を取得
   useEffect(() => {
@@ -232,7 +236,7 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
               </span>
               <button
                 type="button"
-                onClick={onClearSelectedLocation}
+                onClick={clearSelectedLocationInputs}
                 className="text-slate-600 hover:text-slate-800"
               >
                 クリア

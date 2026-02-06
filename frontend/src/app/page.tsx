@@ -8,7 +8,7 @@ import { CameraRegisterPanel } from '@/features/camera-register';
 import { AlertPanel } from '@/widgets/alert-panel';
 import { X, Upload, Bell, RefreshCw, Camera, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
-import type { Alert, DisplayMode, Sighting } from '@/shared/types';
+import type { Alert, DisplayMode, LatLng, Sighting } from '@/shared/types';
 
 // SSRを無効化してMapViewを読み込む（Leafletはクライアントサイドのみ）
 const MapView = dynamic(
@@ -24,7 +24,6 @@ const MapView = dynamic(
 );
 
 type ActivePanel = 'upload' | 'alerts' | 'camera' | null;
-type CameraPlacementLocation = { lat: number; lng: number };
 
 export default function HomePage() {
   const { user, loading, logout } = useAuth();
@@ -35,7 +34,7 @@ export default function HomePage() {
   const [nearbyBounds, setNearbyBounds] = useState<string | null>(null);
   const [isCameraPlacementMode, setIsCameraPlacementMode] = useState(false);
   const [selectedCameraLocation, setSelectedCameraLocation] =
-    useState<CameraPlacementLocation | null>(null);
+    useState<LatLng | null>(null);
 
   // 未認証の場合はログインページにリダイレクト
   useEffect(() => {
