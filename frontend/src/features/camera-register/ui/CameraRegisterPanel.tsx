@@ -61,15 +61,53 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
       return;
     }
 
+    const setLocation = (position: GeolocationPosition) => {
+      setLatitude(position.coords.latitude.toFixed(6));
+      setLongitude(position.coords.longitude.toFixed(6));
+      setError(null);
+    };
+
+    const getErrorMessage = (err: GeolocationPositionError) => {
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          return '位置情報の利用が拒否されました。ブラウザの設定を確認してください';
+        case err.POSITION_UNAVAILABLE:
+          return '位置情報を特定できませんでした。電波状況の良い場所で再試行してください';
+        case err.TIMEOUT:
+          return '位置情報の取得がタイムアウトしました。再試行してください';
+        default:
+          return '位置情報の取得に失敗しました';
+      }
+    };
+
+    const fallbackOptions: PositionOptions = {
+      enableHighAccuracy: false,
+      timeout: 15000,
+      maximumAge: 300000,
+    };
+
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLatitude(position.coords.latitude.toFixed(6));
-        setLongitude(position.coords.longitude.toFixed(6));
-        setError(null);
+      setLocation,
+      (firstError) => {
+        if (firstError.code === firstError.PERMISSION_DENIED) {
+          setError(getErrorMessage(firstError));
+          console.error('Geolocation error:', firstError);
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          setLocation,
+          (fallbackError) => {
+            setError(getErrorMessage(fallbackError));
+            console.error('Geolocation error:', fallbackError);
+          },
+          fallbackOptions
+        );
       },
-      (err) => {
-        setError('位置情報の取得に失敗しました');
-        console.error('Geolocation error:', err);
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000,
       }
     );
   };
