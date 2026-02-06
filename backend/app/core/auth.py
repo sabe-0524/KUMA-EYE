@@ -79,11 +79,15 @@ def _verify_id_token_with_public_keys(token: str):
 
 
 def _is_default_credentials_error(error: Exception) -> bool:
-    """例外チェーンをたどってADC不足由来か判定する"""
+    """例外チェーンをたどって公開鍵フォールバック対象か判定する"""
     if isinstance(error, DefaultCredentialsError):
         return True
 
-    if "default credentials were not found" in str(error).lower():
+    message = str(error).lower()
+    if "default credentials were not found" in message:
+        return True
+
+    if "default firebase app does not exist" in message:
         return True
 
     cause = getattr(error, "__cause__", None)

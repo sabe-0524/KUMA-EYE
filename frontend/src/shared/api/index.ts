@@ -42,6 +42,13 @@ const withAuthHeader = (idToken?: string) =>
 // リクエストインターセプター: Firebase認証トークンを自動付与
 apiClient.interceptors.request.use(
   async (config) => {
+    const existingAuthHeader =
+      (config.headers as Record<string, string | undefined> | undefined)?.Authorization;
+
+    if (existingAuthHeader) {
+      return config;
+    }
+
     const user = auth.currentUser;
     if (user) {
       try {

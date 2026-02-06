@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { UploadPanel } from '@/features/upload-footage';
 import { CameraRegisterPanel } from '@/features/camera-register';
 import { AlertPanel } from '@/widgets/alert-panel';
-import { Menu, X, Upload, Bell, Map, RefreshCw, Camera, LogOut, Settings } from 'lucide-react';
+import { X, Upload, Bell, RefreshCw, Camera, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/shared/providers/AuthProvider';
 import type { Alert, Sighting } from '@/shared/types';
 
