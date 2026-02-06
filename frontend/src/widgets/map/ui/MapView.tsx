@@ -166,26 +166,55 @@ const LocationMarker: React.FC<{
   currentLocation: LatLng | null;
   manualLocation: LatLng | null;
 }> = ({ currentLocation, manualLocation }) => {
-  const location = currentLocation ?? manualLocation;
-  if (!location) return null;
+  if (currentLocation) {
+    const currentCenter: [number, number] = [currentLocation.lat, currentLocation.lng];
 
-  const isCurrent = Boolean(currentLocation);
-  const color = isCurrent ? '#2563eb' : '#0f766e';
-  const label = isCurrent ? '現在地' : '指定地点';
+    return (
+      <>
+        <CircleMarker
+          center={currentCenter}
+          radius={10}
+          pathOptions={{
+            color: '#ffffff',
+            fillColor: '#ffffff',
+            fillOpacity: 1,
+            weight: 1,
+          }}
+          interactive={false}
+        />
+        <CircleMarker
+          center={currentCenter}
+          radius={7}
+          pathOptions={{
+            color: '#ffffff',
+            fillColor: '#2563eb',
+            fillOpacity: 1,
+            weight: 2,
+          }}
+        >
+          <Popup>
+            <div className="text-sm font-semibold">現在地</div>
+          </Popup>
+        </CircleMarker>
+      </>
+    );
+  }
+
+  if (!manualLocation) return null;
 
   return (
     <CircleMarker
-      center={[location.lat, location.lng]}
+      center={[manualLocation.lat, manualLocation.lng]}
       radius={8}
       pathOptions={{
-        color,
-        fillColor: color,
+        color: '#0f766e',
+        fillColor: '#0f766e',
         fillOpacity: 0.95,
         weight: 2,
       }}
     >
       <Popup>
-        <div className="text-sm font-semibold">{label}</div>
+        <div className="text-sm font-semibold">指定地点</div>
       </Popup>
     </CircleMarker>
   );
