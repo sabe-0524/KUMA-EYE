@@ -39,6 +39,7 @@ services:
       DATABASE_URL: postgresql://bearuser:bearpass@db:5432/bear_detection_db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_TASK_ALWAYS_EAGER: "false"
       MODEL_PATH: /app/models/bear_detector.pt
       DETECTION_CONFIDENCE_THRESHOLD: "0.5"
       DEFAULT_FRAME_INTERVAL_SECONDS: "5"
@@ -63,6 +64,7 @@ services:
       DATABASE_URL: postgresql://bearuser:bearpass@db:5432/bear_detection_db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_TASK_ALWAYS_EAGER: "false"
       MODEL_PATH: /app/models/bear_detector.pt
       DETECTION_CONFIDENCE_THRESHOLD: "0.5"
       LOCAL_STORAGE_PATH: /app/storage

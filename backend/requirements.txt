@@ -38,6 +38,7 @@ aiofiles>=23.2.1
 
 # Utilities
 python-dotenv>=1.0.0
+pytest>=8.0.0
 
 # Firebase Admin SDK
 firebase-admin>=6.4.0
