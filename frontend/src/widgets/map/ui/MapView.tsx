@@ -1,35 +1,22 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import {
-  MapContainer,
-  TileLayer,
-  CircleMarker,
-  Popup,
-  ZoomControl,
-  useMap,
-  useMapEvents,
-} from 'react-leaflet';
-import type { LatLngBoundsExpression } from 'leaflet';
-import { getSightings, getFullImageUrl } from '@/shared/api';
+import React, { useMemo } from 'react';
+import { MapContainer } from 'react-leaflet';
 import type { DisplayMode, LatLng, Sighting } from '@/shared/types';
-import { alertLevelLabels, alertLevelEmojis } from '@/shared/types';
-import { getCurrentPositionWithFallback } from '@/shared/lib/geolocation';
-import { getAlertColor, getMarkerRadius, formatConfidence, formatDateTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
-
-// 東京周辺をデフォルト中心に
-const DEFAULT_CENTER: [number, number] = [35.6812, 139.7671];
-const DEFAULT_ZOOM = 10;
-const JAPAN_BOUNDS: LatLngBoundsExpression = [
-  [24.0, 124.5],
-  [45.5, 146.5],
-];
-const MIN_ZOOM_JAPAN = 5;
-const NEARBY_ZOOM = 12;
-const NEARBY_RADIUS_KM = 20;
-
-type LocationStatus = 'idle' | 'requesting' | 'granted' | 'manual';
+import {
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+  JAPAN_BOUNDS,
+  MIN_ZOOM_JAPAN,
+} from '@/widgets/map/lib/displayBounds';
+import { useMapSightings } from '@/widgets/map/model/useMapSightings';
+import { MapDisplayModeToggle } from '@/widgets/map/ui/MapDisplayModeToggle';
+import { MapInteractionController } from '@/widgets/map/ui/MapInteractionController';
+import { MapLegend } from '@/widgets/map/ui/MapLegend';
+import { MapLocationMarkers } from '@/widgets/map/ui/MapLocationMarkers';
+import { MapSightingsLayer } from '@/widgets/map/ui/MapSightingsLayer';
+import { MapStatusBanners } from '@/widgets/map/ui/MapStatusBanners';
 
 interface MapViewProps {
   onSightingSelect?: (sighting: Sighting) => void;
@@ -41,232 +28,7 @@ interface MapViewProps {
   onCameraPlacementSelect?: (location: LatLng) => void;
 }
 
-// マーカーを表示するサブコンポーネント
-const SightingMarkers: React.FC<{
-  sightings: Sighting[];
-  onSightingSelect?: (sighting: Sighting) => void;
-  onImageClick: (url: string) => void;
-}> = ({ sightings, onSightingSelect, onImageClick }) => {
-  return (
-    <>
-      {sightings.map((sighting) => (
-        <CircleMarker
-          key={sighting.id}
-          center={[sighting.latitude, sighting.longitude]}
-          radius={getMarkerRadius(sighting.bear_count)}
-          pathOptions={{
-            color: getAlertColor(sighting.alert_level),
-            fillColor: getAlertColor(sighting.alert_level),
-            fillOpacity: 0.7,
-            weight: 2,
-          }}
-          eventHandlers={{
-            click: () => onSightingSelect?.(sighting),
-          }}
-        >
-          <Popup>
-            <div className="min-w-[200px]">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">{alertLevelEmojis[sighting.alert_level]}</span>
-                <span className="font-bold">
-                  {alertLevelLabels[sighting.alert_level]}
-                </span>
-              </div>
-              
-              <div className="space-y-1 text-sm">
-                <p>
-                  <strong>検出日時:</strong> {formatDateTime(sighting.detected_at)}
-                </p>
-                <p>
-                  <strong>信頼度:</strong> {formatConfidence(sighting.confidence)}
-                </p>
-                <p>
-                  <strong>検出数:</strong> {sighting.bear_count}頭
-                </p>
-                {sighting.camera && (
-                  <p>
-                    <strong>カメラ:</strong> {sighting.camera.name}
-                  </p>
-                )}
-              </div>
-
-              {sighting.image_url && (
-                <div className="mt-2">
-                  <img
-                    src={getFullImageUrl(sighting.image_url)}
-                    alt="検出画像"
-                    className="w-full h-32 object-cover rounded cursor-pointer hover:opacity-80"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onImageClick(sighting.image_url!);
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          </Popup>
-        </CircleMarker>
-      ))}
-    </>
-  );
-};
-
-// 凡例コンポーネント
-const Legend: React.FC = () => (
-  <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur rounded-xl border border-slate-200/70 shadow-lg p-3 z-[1000]">
-    <h4 className="font-semibold text-sm text-slate-900 mb-2">警報レベル</h4>
-    <div className="space-y-1">
-      {(['critical', 'warning', 'caution'] as const).map((level) => (
-        <div key={level} className="flex items-center gap-2 text-sm">
-          <span
-            className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: getAlertColor(level) }}
-          />
-          <span>{alertLevelEmojis[level]} {alertLevelLabels[level]}</span>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-const getBoundsFromCenter = (center: LatLng, radiusKm: number): string => {
-  const deltaLat = radiusKm / 111;
-  const cosLat = Math.cos((center.lat * Math.PI) / 180);
-  const safeCosLat = Math.max(Math.abs(cosLat), 0.000001);
-  const deltaLng = radiusKm / (111 * safeCosLat);
-  const swLat = clamp(center.lat - deltaLat, -90, 90);
-  const swLng = clamp(center.lng - deltaLng, -180, 180);
-  const neLat = clamp(center.lat + deltaLat, -90, 90);
-  const neLng = clamp(center.lng + deltaLng, -180, 180);
-  return `${swLat},${swLng},${neLat},${neLng}`;
-};
-
-// メインの地図コンポーネント（内部用）
-const MapContent: React.FC<{
-  sightings: Sighting[];
-  onSightingSelect?: (sighting: Sighting) => void;
-  onImageClick: (url: string) => void;
-}> = ({ sightings, onSightingSelect, onImageClick }) => {
-  return (
-    <>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <ZoomControl position="topright" />
-      <SightingMarkers
-        sightings={sightings}
-        onSightingSelect={onSightingSelect}
-        onImageClick={onImageClick}
-      />
-    </>
-  );
-};
-
-const LocationMarker: React.FC<{
-  currentLocation: LatLng | null;
-  manualLocation: LatLng | null;
-}> = ({ currentLocation, manualLocation }) => {
-  if (currentLocation) {
-    const currentCenter: [number, number] = [currentLocation.lat, currentLocation.lng];
-
-    return (
-      <>
-        <CircleMarker
-          center={currentCenter}
-          radius={10}
-          pathOptions={{
-            color: '#ffffff',
-            fillColor: '#ffffff',
-            fillOpacity: 1,
-            weight: 1,
-          }}
-          interactive={false}
-        />
-        <CircleMarker
-          center={currentCenter}
-          radius={7}
-          pathOptions={{
-            color: '#ffffff',
-            fillColor: '#2563eb',
-            fillOpacity: 1,
-            weight: 2,
-          }}
-        >
-          <Popup>
-            <div className="text-sm font-semibold">現在地</div>
-          </Popup>
-        </CircleMarker>
-      </>
-    );
-  }
-
-  if (!manualLocation) return null;
-
-  return (
-    <CircleMarker
-      center={[manualLocation.lat, manualLocation.lng]}
-      radius={8}
-      pathOptions={{
-        color: '#0f766e',
-        fillColor: '#0f766e',
-        fillOpacity: 0.95,
-        weight: 2,
-      }}
-    >
-      <Popup>
-        <div className="text-sm font-semibold">指定地点</div>
-      </Popup>
-    </CircleMarker>
-  );
-};
-
-const MapController: React.FC<{
-  displayMode: DisplayMode;
-  locationStatus: LocationStatus;
-  currentLocation: LatLng | null;
-  manualLocation: LatLng | null;
-  cameraPlacementMode: boolean;
-  onCameraPlacementSelect?: (location: LatLng) => void;
-  onManualLocationSelect: (location: LatLng) => void;
-}> = ({
-  displayMode,
-  locationStatus,
-  currentLocation,
-  manualLocation,
-  cameraPlacementMode,
-  onCameraPlacementSelect,
-  onManualLocationSelect,
-}) => {
-  const map = useMap();
-
-  useEffect(() => {
-    if (displayMode !== 'nearby') return;
-    const target = currentLocation ?? manualLocation;
-    if (!target) return;
-    map.setView([target.lat, target.lng], NEARBY_ZOOM);
-  }, [displayMode, currentLocation, manualLocation, map]);
-
-  useMapEvents({
-    click: (event) => {
-      if (cameraPlacementMode) {
-        const location = { lat: event.latlng.lat, lng: event.latlng.lng };
-        onCameraPlacementSelect?.(location);
-        return;
-      }
-      if (locationStatus !== 'manual' || displayMode !== 'nearby') return;
-      const location = { lat: event.latlng.lat, lng: event.latlng.lng };
-      onManualLocationSelect(location);
-      map.setView([location.lat, location.lng], NEARBY_ZOOM);
-    },
-  });
-
-  return null;
-};
-
-export const MapView: React.FC<MapViewProps> = ({ 
+export const MapView: React.FC<MapViewProps> = ({
   onSightingSelect,
   refreshInterval = 30000,
   refreshTrigger = 0,
@@ -275,111 +37,28 @@ export const MapView: React.FC<MapViewProps> = ({
   cameraPlacementLocation = null,
   onCameraPlacementSelect,
 }) => {
-  const [sightings, setSightings] = useState<Sighting[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('national');
-  const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
-  const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null);
-  const [manualLocation, setManualLocation] = useState<LatLng | null>(null);
+  const {
+    sightings,
+    loading,
+    error,
+    selectedImage,
+    displayMode,
+    locationStatus,
+    currentLocation,
+    manualLocation,
+    setDisplayMode,
+    setManualLocation,
+    openImage,
+    closeImage,
+  } = useMapSightings({
+    refreshInterval,
+    refreshTrigger,
+    onDisplayContextChange,
+  });
 
-  const fetchSightings = useCallback(async () => {
-    try {
-      const bounds =
-        displayMode === 'nearby'
-          ? (() => {
-              const center = currentLocation ?? manualLocation;
-              if (!center) return null;
-              return getBoundsFromCenter(center, NEARBY_RADIUS_KM);
-            })()
-          : null;
-
-      if (displayMode === 'nearby' && !bounds) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await getSightings({
-        limit: 500,
-        ...(bounds ? { bounds } : {}),
-      });
-      setSightings(response.sightings.filter((sighting) => sighting.alert_level !== 'low'));
-      setError(null);
-    } catch (err) {
-      console.error('Failed to fetch sightings:', err);
-      setError('目撃情報の取得に失敗しました');
-    } finally {
-      setLoading(false);
-    }
-  }, [displayMode, currentLocation, manualLocation]);
-
-  // 初回ロードと定期更新
-  useEffect(() => {
-    fetchSightings();
-    const interval = setInterval(fetchSightings, refreshInterval);
-    return () => clearInterval(interval);
-  }, [fetchSightings, refreshInterval]);
-
-  // 外部トリガーによる再フェッチ
-  useEffect(() => {
-    if (refreshTrigger > 0) {
-      fetchSightings();
-    }
-  }, [refreshTrigger, fetchSightings]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    if (displayMode !== 'nearby') {
-      setLocationStatus('idle');
-      setCurrentLocation(null);
-      setManualLocation(null);
-      return;
-    }
-    if (!navigator.geolocation) {
-      setLocationStatus('manual');
-      return;
-    }
-    setLocationStatus('requesting');
-    getCurrentPositionWithFallback()
-      .then((position) => {
-        if (!isActive) return;
-        setCurrentLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-        setLocationStatus('granted');
-      })
-      .catch(() => {
-        if (!isActive) return;
-        setLocationStatus('manual');
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [displayMode]);
-
-  const selectedCenter = useMemo(
-    () => currentLocation ?? manualLocation,
-    [currentLocation, manualLocation]
-  );
-  const nearbyBounds = useMemo(
-    () => (selectedCenter ? getBoundsFromCenter(selectedCenter, NEARBY_RADIUS_KM) : null),
-    [selectedCenter]
-  );
-
-  useEffect(() => {
-    onDisplayContextChange?.({
-      mode: displayMode,
-      bounds: displayMode === 'nearby' ? nearbyBounds : null,
-    });
-  }, [displayMode, nearbyBounds, onDisplayContextChange]);
-
-  const handleImageClick = useCallback((url: string) => {
-    setSelectedImage(url);
-  }, []);
+  const selectedCenter = useMemo(() => {
+    return currentLocation ?? manualLocation;
+  }, [currentLocation, manualLocation]);
 
   if (loading) {
     return (
@@ -394,29 +73,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   return (
     <div className="relative w-full h-full">
-      <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2 bg-white/90 backdrop-blur border border-slate-200/70 shadow-lg rounded-xl px-3 py-2">
-        <div className="text-sm text-slate-700">表示:</div>
-        <button
-          onClick={() => setDisplayMode('national')}
-          className={`px-3 py-1 rounded-full text-sm transition-colors ${
-            displayMode === 'national'
-              ? 'bg-amber-600 text-white'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }`}
-        >
-          全国
-        </button>
-        <button
-          onClick={() => setDisplayMode('nearby')}
-          className={`px-3 py-1 rounded-full text-sm transition-colors ${
-            displayMode === 'nearby'
-              ? 'bg-emerald-600 text-white'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }`}
-        >
-          現在地付近
-        </button>
-      </div>
+      <MapDisplayModeToggle displayMode={displayMode} onChange={setDisplayMode} />
 
       <MapContainer
         center={DEFAULT_CENTER}
@@ -428,32 +85,17 @@ export const MapView: React.FC<MapViewProps> = ({
         zoomControl={false}
         scrollWheelZoom={true}
       >
-        <MapContent
+        <MapSightingsLayer
           sightings={sightings}
           onSightingSelect={onSightingSelect}
-          onImageClick={handleImageClick}
+          onImageClick={openImage}
         />
-        <LocationMarker
+        <MapLocationMarkers
           currentLocation={currentLocation}
           manualLocation={manualLocation}
+          cameraPlacementLocation={cameraPlacementLocation}
         />
-        {cameraPlacementLocation && (
-          <CircleMarker
-            center={[cameraPlacementLocation.lat, cameraPlacementLocation.lng]}
-            radius={8}
-            pathOptions={{
-              color: '#a16207',
-              fillColor: '#f59e0b',
-              fillOpacity: 0.95,
-              weight: 2,
-            }}
-          >
-            <Popup>
-              <div className="text-sm font-semibold">カメラ設置候補地点</div>
-            </Popup>
-          </CircleMarker>
-        )}
-        <MapController
+        <MapInteractionController
           displayMode={displayMode}
           locationStatus={locationStatus}
           currentLocation={currentLocation}
@@ -464,32 +106,17 @@ export const MapView: React.FC<MapViewProps> = ({
         />
       </MapContainer>
 
-      <Legend />
+      <MapLegend />
 
-      {displayMode === 'nearby' && locationStatus === 'manual' && !selectedCenter && (
-        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-amber-500/10 text-amber-800 px-4 py-2 rounded-lg border border-amber-200/80 shadow z-[1000] text-sm">
-          位置情報が取得できません。地図をクリックして地点を指定してください。
-        </div>
-      )}
+      <MapStatusBanners
+        displayMode={displayMode}
+        locationStatus={locationStatus}
+        selectedCenter={selectedCenter}
+        cameraPlacementMode={cameraPlacementMode}
+        error={error}
+      />
 
-      {cameraPlacementMode && (
-        <div className="absolute top-16 right-4 bg-amber-500/10 text-amber-800 px-4 py-2 rounded-lg border border-amber-200/80 shadow z-[1000] text-sm">
-          カメラ設置モード: 地図をクリックして設置地点を選択
-        </div>
-      )}
-
-      {error && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-500/10 text-red-700 px-4 py-2 rounded-lg border border-red-200/80 shadow z-[1000]">
-          {error}
-        </div>
-      )}
-
-      {selectedImage && (
-        <ImageModal
-          imageUrl={selectedImage}
-          onClose={() => setSelectedImage(null)}
-        />
-      )}
+      {selectedImage && <ImageModal imageUrl={selectedImage} onClose={closeImage} />}
     </div>
   );
 };

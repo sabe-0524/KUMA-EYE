@@ -39,6 +39,31 @@ const withAuthHeader = (idToken?: string) =>
       }
     : undefined;
 
+type UploadRequestOptions = {
+  camera_id?: number;
+  latitude?: number;
+  longitude?: number;
+  frame_interval?: number;
+};
+
+const appendUploadRequestOptions = (
+  formData: FormData,
+  options: UploadRequestOptions
+): void => {
+  if (options.camera_id !== undefined) {
+    formData.append('camera_id', options.camera_id.toString());
+  }
+  if (options.latitude !== undefined) {
+    formData.append('latitude', options.latitude.toString());
+  }
+  if (options.longitude !== undefined) {
+    formData.append('longitude', options.longitude.toString());
+  }
+  if (options.frame_interval !== undefined) {
+    formData.append('frame_interval', options.frame_interval.toString());
+  }
+};
+
 // リクエストインターセプター: Firebase認証トークンを自動付与
 apiClient.interceptors.request.use(
   async (config) => {
@@ -114,28 +139,11 @@ export const createCamera = async (data: {
 
 export const uploadFootage = async (
   file: File,
-  options: {
-    camera_id?: number;
-    latitude?: number;
-    longitude?: number;
-    frame_interval?: number;
-  }
+  options: UploadRequestOptions
 ): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append('file', file);
-  
-  if (options.camera_id) {
-    formData.append('camera_id', options.camera_id.toString());
-  }
-  if (options.latitude !== undefined) {
-    formData.append('latitude', options.latitude.toString());
-  }
-  if (options.longitude !== undefined) {
-    formData.append('longitude', options.longitude.toString());
-  }
-  if (options.frame_interval) {
-    formData.append('frame_interval', options.frame_interval.toString());
-  }
+  appendUploadRequestOptions(formData, options);
   
   const response = await apiClient.post<UploadResponse>('/uploads', formData, {
     headers: {
@@ -147,28 +155,11 @@ export const uploadFootage = async (
 
 export const uploadFramesZip = async (
   zipFile: File,
-  options: {
-    camera_id?: number;
-    latitude?: number;
-    longitude?: number;
-    frame_interval?: number;
-  }
+  options: UploadRequestOptions
 ): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append('zip_file', zipFile);
-
-  if (options.camera_id) {
-    formData.append('camera_id', options.camera_id.toString());
-  }
-  if (options.latitude !== undefined) {
-    formData.append('latitude', options.latitude.toString());
-  }
-  if (options.longitude !== undefined) {
-    formData.append('longitude', options.longitude.toString());
-  }
-  if (options.frame_interval) {
-    formData.append('frame_interval', options.frame_interval.toString());
-  }
+  appendUploadRequestOptions(formData, options);
 
   const response = await apiClient.post<UploadResponse>('/uploads/frames', formData, {
     headers: {
