@@ -66,6 +66,11 @@ npm run dev
 - バックエンドAPI: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
+### 🔄 アップロード非同期処理モード
+
+- ローカル（Docker不要）: `CELERY_TASK_ALWAYS_EAGER=true` を使用し、アップロード処理を同一プロセスで即時実行します。
+- Docker/本番想定: `CELERY_TASK_ALWAYS_EAGER=false` を使用し、APIはCeleryキューへ投入、ワーカーが非同期処理します。
+
 ### 方法3: スクリプトを使用
 
 ```bash
