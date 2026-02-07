@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   User,
   createUserWithEmailAndPassword,
@@ -10,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/shared/lib/firebase';
 import { getMyProfile, syncCurrentUser } from '@/shared/api';
+import { queryKeys } from '@/shared/lib/queryKeys';
 import type { UserProfile } from '@/shared/types';
 
 interface UseAuthSessionResult {
@@ -27,37 +29,65 @@ interface UseAuthSessionResult {
 }
 
 export const useAuthSession = (): UseAuthSessionResult => {
+  const queryClient = useQueryClient();
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   const lastSyncedUidRef = useRef<string | null>(null);
   const activeUidRef = useRef<string | null>(null);
 
-  const setProfileData = useCallback((nextProfile: UserProfile | null) => {
-    setProfile(nextProfile);
-  }, []);
+  const profileQuery = useQuery({
+    queryKey: queryKeys.user.profile(user?.uid ?? 'anonymous'),
+    queryFn: async () => {
+      if (!user) {
+        throw new Error('No authenticated user');
+      }
+      const idToken = await user.getIdToken();
+      return getMyProfile(idToken);
+    },
+    enabled: Boolean(user),
+  });
+
+  const setProfileData = useCallback(
+    (nextProfile: UserProfile | null) => {
+      if (!user) {
+        return;
+      }
+
+      const profileKey = queryKeys.user.profile(user.uid);
+      if (nextProfile) {
+        queryClient.setQueryData(profileKey, nextProfile);
+        return;
+      }
+
+      queryClient.removeQueries({ queryKey: profileKey, exact: true });
+    },
+    [queryClient, user]
+  );
 
   const refreshProfile = useCallback(async (): Promise<UserProfile | null> => {
     if (!user) {
-      setProfile(null);
       return null;
     }
 
-    const requestUid = user.uid;
+    const profileKey = queryKeys.user.profile(user.uid);
+
     try {
-      const idToken = await user.getIdToken();
-      const latestProfile = await getMyProfile(idToken);
-      if (activeUidRef.current !== requestUid) {
-        return null;
-      }
-      setProfile(latestProfile);
+      await queryClient.invalidateQueries({ queryKey: profileKey, exact: true });
+      const latestProfile = await queryClient.fetchQuery({
+        queryKey: profileKey,
+        queryFn: async () => {
+          const idToken = await user.getIdToken();
+          return getMyProfile(idToken);
+        },
+      });
       return latestProfile;
     } catch (error) {
       console.error('プロフィール再取得エラー:', error);
       return null;
     }
-  }, [user]);
+  }, [queryClient, user]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
@@ -74,7 +104,7 @@ export const useAuthSession = (): UseAuthSessionResult => {
             if (activeUidRef.current !== requestUid) {
               return;
             }
-            setProfile(synced.user);
+            queryClient.setQueryData(queryKeys.user.profile(nextUser.uid), synced.user);
             lastSyncedUidRef.current = nextUser.uid;
           } catch (error) {
             console.error('ユーザー同期エラー:', error);
@@ -83,14 +113,14 @@ export const useAuthSession = (): UseAuthSessionResult => {
       } else {
         lastSyncedUidRef.current = null;
         activeUidRef.current = null;
-        setProfile(null);
+        queryClient.removeQueries({ queryKey: queryKeys.user.all });
       }
     });
 
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [queryClient]);
 
   const signInWithGoogle = async () => {
     try {
@@ -131,7 +161,7 @@ export const useAuthSession = (): UseAuthSessionResult => {
   return {
     user,
     loading,
-    profile,
+    profile: profileQuery.data ?? null,
     activeUidRef,
     signInWithGoogle,
     signInWithEmailPassword,

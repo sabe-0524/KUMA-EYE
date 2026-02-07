@@ -37,13 +37,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
-      return;
     }
-
-    if (user) {
-      void loadProfile();
-    }
-  }, [loading, user, router, loadProfile]);
+  }, [loading, user, router]);
 
   if (loading) {
     return (

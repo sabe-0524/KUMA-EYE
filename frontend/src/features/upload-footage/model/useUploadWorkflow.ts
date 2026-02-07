@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getCameras, getUpload, uploadFootage, uploadFramesZip } from '@/shared/api';
+import { queryKeys } from '@/shared/lib/queryKeys';
 import type { Camera, UploadResponse, UploadStatus } from '@/shared/types';
 import { createFramesZipFromVideo } from '@/features/upload-footage/lib/videoFramesZip';
 
@@ -41,7 +43,6 @@ const getUploadErrorMessage = (error: unknown): string => {
 };
 
 export const useUploadWorkflow = (onUploadComplete?: () => void): UseUploadWorkflowResult => {
-  const [cameras, setCameras] = useState<Camera[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<number | null>(null);
   const [manualLocation, setManualLocation] = useState<ManualLocationInput>({
     latitude: '',
@@ -56,18 +57,13 @@ export const useUploadWorkflow = (onUploadComplete?: () => void): UseUploadWorkf
   const [uploadStatus, setUploadStatus] = useState<UploadStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchCameras = async () => {
-      try {
-        const response = await getCameras(true);
-        setCameras(response.cameras);
-      } catch (requestError) {
-        console.error('Failed to fetch cameras:', requestError);
-      }
-    };
-
-    void fetchCameras();
-  }, []);
+  const camerasQuery = useQuery({
+    queryKey: queryKeys.cameras.list(true),
+    queryFn: async () => {
+      const response = await getCameras(true);
+      return response.cameras;
+    },
+  });
 
   useEffect(() => {
     if (!uploadResult || uploadStatus === 'completed' || uploadStatus === 'failed') {
@@ -169,7 +165,7 @@ export const useUploadWorkflow = (onUploadComplete?: () => void): UseUploadWorkf
   }, []);
 
   return {
-    cameras,
+    cameras: camerasQuery.data ?? [],
     selectedCameraId,
     manualLocation,
     useManualLocation,
