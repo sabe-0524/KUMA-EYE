@@ -2,8 +2,8 @@
 Bear Detection System - SQLAlchemy Models
 """
 from sqlalchemy import (
-    Column, Integer, String, Text, Boolean, Float, 
-    DateTime, ForeignKey, Numeric, BigInteger
+    Column, Integer, String, Text, Boolean,
+    DateTime, ForeignKey, Numeric, BigInteger, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -111,6 +111,7 @@ class Alert(Base):
     
     # Relationships
     sighting = relationship("Sighting", back_populates="alerts")
+    notifications = relationship("AlertNotification", back_populates="alert", cascade="all, delete-orphan")
 
 
 class Job(Base):
@@ -140,5 +141,31 @@ class User(Base):
     firebase_uid = Column(String(128), nullable=False, unique=True, index=True)
     email = Column(String(255), nullable=False, index=True)
     name = Column(String(255))
+    email_opt_in = Column(Boolean, nullable=False, default=True)
+    location = Column(Geometry(geometry_type='POINT', srid=4326))
+    latitude = Column(Numeric(10, 8))
+    longitude = Column(Numeric(11, 8))
+    location_updated_at = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
+    notifications = relationship("AlertNotification", back_populates="user", cascade="all, delete-orphan")
+
+
+class AlertNotification(Base):
+    """警報通知配信ログ"""
+    __tablename__ = "alert_notifications"
+    __table_args__ = (
+        UniqueConstraint("alert_id", "user_id", "channel", name="uq_alert_notifications_alert_user_channel"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    alert_id = Column(Integer, ForeignKey("alerts.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    channel = Column(String(20), nullable=False, default="email")
+    status = Column(String(20), nullable=False)
+    sent_at = Column(DateTime)
+    error_message = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+
+    alert = relationship("Alert", back_populates="notifications")
+    user = relationship("User", back_populates="notifications")

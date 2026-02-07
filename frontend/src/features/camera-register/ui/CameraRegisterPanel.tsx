@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Camera, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { createCamera, getCameras } from '@/shared/api';
+import { getCurrentPositionWithFallback, getGeolocationErrorMessage } from '@/shared/lib/geolocation';
 import type { Camera as CameraType, LatLng } from '@/shared/types';
 
 interface CameraRegisterPanelProps {
@@ -59,61 +60,21 @@ export const CameraRegisterPanel: React.FC<CameraRegisterPanelProps> = ({
   }, [selectedLocation]);
 
   // 現在地を取得
-  const getCurrentLocation = () => {
+  const getCurrentLocation = async () => {
     if (!navigator.geolocation) {
       setError('位置情報がサポートされていません');
       return;
     }
 
-    const setLocation = (position: GeolocationPosition) => {
+    try {
+      const position = await getCurrentPositionWithFallback();
       setLatitude(position.coords.latitude.toFixed(6));
       setLongitude(position.coords.longitude.toFixed(6));
       setError(null);
-    };
-
-    const getErrorMessage = (err: GeolocationPositionError) => {
-      switch (err.code) {
-        case err.PERMISSION_DENIED:
-          return '位置情報の利用が拒否されました。ブラウザの設定を確認してください';
-        case err.POSITION_UNAVAILABLE:
-          return '位置情報を特定できませんでした。電波状況の良い場所で再試行してください';
-        case err.TIMEOUT:
-          return '位置情報の取得がタイムアウトしました。再試行してください';
-        default:
-          return '位置情報の取得に失敗しました';
-      }
-    };
-
-    const fallbackOptions: PositionOptions = {
-      enableHighAccuracy: false,
-      timeout: 15000,
-      maximumAge: 300000,
-    };
-
-    navigator.geolocation.getCurrentPosition(
-      setLocation,
-      (firstError) => {
-        if (firstError.code === firstError.PERMISSION_DENIED) {
-          setError(getErrorMessage(firstError));
-          console.error('Geolocation error:', firstError);
-          return;
-        }
-
-        navigator.geolocation.getCurrentPosition(
-          setLocation,
-          (fallbackError) => {
-            setError(getErrorMessage(fallbackError));
-            console.error('Geolocation error:', fallbackError);
-          },
-          fallbackOptions
-        );
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 30000,
-      }
-    );
+    } catch (err) {
+      setError(getGeolocationErrorMessage(err));
+      console.error('Geolocation error:', err);
+    }
   };
 
   // フォーム送信

@@ -1,6 +1,7 @@
 """
 Bear Detection System - Uploads API
 """
+import logging
 import os
 import shutil
 import zipfile
@@ -23,9 +24,11 @@ from app.models.schemas import (
     FileType
 )
 from app.services.detection import get_detection_service
+from app.services.notification_service import NOTIFIABLE_ALERT_LEVELS, notify_for_alert
 from app.services.video_processor import get_video_processor
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
+logger = logging.getLogger(__name__)
 
 
 def get_file_type(content_type: str) -> Optional[str]:
@@ -82,6 +85,7 @@ def process_upload(upload_id: int, frame_interval: int = 5):
         file_path = upload.file_path
         frame_count = 0
         sighting_count = 0
+        notification_dispatched = False
         
         if upload.file_type == "video":
             # 動画処理
@@ -152,6 +156,14 @@ def process_upload(upload_id: int, frame_interval: int = 5):
                     
                     sighting_count += 1
                     db.commit()
+
+                    if not notification_dispatched and alert_level in NOTIFIABLE_ALERT_LEVELS:
+                        try:
+                            notify_for_alert(db, alert.id)
+                        except Exception:
+                            db.rollback()
+                            logger.exception("Notification failed for alert_id=%s", alert.id)
+                        notification_dispatched = True
         
         else:
             # 画像処理
@@ -216,6 +228,15 @@ def process_upload(upload_id: int, frame_interval: int = 5):
                 db.add(alert)
                 
                 sighting_count += 1
+                db.commit()
+
+                if not notification_dispatched and alert_level in NOTIFIABLE_ALERT_LEVELS:
+                    try:
+                        notify_for_alert(db, alert.id)
+                    except Exception:
+                        db.rollback()
+                        logger.exception("Notification failed for alert_id=%s", alert.id)
+                    notification_dispatched = True
         
         # 処理完了
         upload.status = "completed"
@@ -277,6 +298,7 @@ def process_frame_upload(upload_id: int, frames_dir: str, frame_interval: int = 
 
         frame_count = 0
         sighting_count = 0
+        notification_dispatched = False
 
         frame_paths = video_processor.list_frame_files(frames_dir)
         for frame_num, frame_path in enumerate(frame_paths):
@@ -341,6 +363,14 @@ def process_frame_upload(upload_id: int, frames_dir: str, frame_interval: int = 
                 sighting_count += 1
                 db.commit()
 
+                if not notification_dispatched and alert_level in NOTIFIABLE_ALERT_LEVELS:
+                    try:
+                        notify_for_alert(db, alert.id)
+                    except Exception:
+                        db.rollback()
+                        logger.exception("Notification failed for alert_id=%s", alert.id)
+                    notification_dispatched = True
+
         upload.status = "completed"
         upload.frame_count = frame_count
         upload.duration_seconds = frame_count * frame_interval if frame_interval else None
@@ -399,7 +429,8 @@ async def create_upload(
     longitude: Optional[float] = Form(None),
     recorded_at: Optional[datetime] = Form(None),
     frame_interval: int = Form(5),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _current_user: FirebaseUser = Depends(get_current_user),
 ):
     """
     映像（動画または画像）をアップロードし、熊検出処理を開始
@@ -492,7 +523,8 @@ async def create_frame_upload(
     longitude: Optional[float] = Form(None),
     recorded_at: Optional[datetime] = Form(None),
     frame_interval: int = Form(5),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _current_user: FirebaseUser = Depends(get_current_user),
 ):
     """
     フレーム画像ZIPをアップロードし、熊検出処理を開始

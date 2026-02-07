@@ -270,6 +270,10 @@ class UserResponse(BaseModel):
     firebase_uid: str
     email: str
     name: Optional[str] = None
+    email_opt_in: bool = True
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location_updated_at: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -280,3 +284,12 @@ class UserResponse(BaseModel):
 class UserSyncResponse(BaseModel):
     user: UserResponse
     created: bool
+
+
+class UserNotificationSettingsUpdate(BaseModel):
+    email_opt_in: bool
+
+
+class UserLocationUpdate(BaseModel):
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)

@@ -1,16 +1,23 @@
 """
 Bear Detection System - Users API
 """
+from datetime import datetime
 from typing import Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.auth import FirebaseUser, get_current_user
 from app.core.database import get_db
 from app.models.database import User
-from app.models.schemas import UserResponse, UserSyncResponse
+from app.models.schemas import (
+    UserLocationUpdate,
+    UserNotificationSettingsUpdate,
+    UserResponse,
+    UserSyncResponse,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -83,4 +90,35 @@ def get_my_profile(
     if not db_user or not db_user.email:
         db_user, _ = sync_user_from_firebase(db, current_user)
 
+    return UserResponse.model_validate(db_user)
+
+
+@router.put("/me/notification-settings", response_model=UserResponse)
+def update_notification_settings(
+    payload: UserNotificationSettingsUpdate,
+    db: Session = Depends(get_db),
+    current_user: FirebaseUser = Depends(get_current_user),
+):
+    """通知設定（メール受信可否）を更新"""
+    db_user, _ = sync_user_from_firebase(db, current_user)
+    db_user.email_opt_in = payload.email_opt_in
+    db.commit()
+    db.refresh(db_user)
+    return UserResponse.model_validate(db_user)
+
+
+@router.post("/me/location", response_model=UserResponse)
+def update_my_location(
+    payload: UserLocationUpdate,
+    db: Session = Depends(get_db),
+    current_user: FirebaseUser = Depends(get_current_user),
+):
+    """現在地を更新（通知対象抽出用）"""
+    db_user, _ = sync_user_from_firebase(db, current_user)
+    db_user.latitude = payload.latitude
+    db_user.longitude = payload.longitude
+    db_user.location = func.ST_SetSRID(func.ST_MakePoint(payload.longitude, payload.latitude), 4326)
+    db_user.location_updated_at = datetime.now()
+    db.commit()
+    db.refresh(db_user)
     return UserResponse.model_validate(db_user)

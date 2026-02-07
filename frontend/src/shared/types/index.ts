@@ -125,6 +125,10 @@ export interface UserProfile {
   firebase_uid: string;
   email: string;
   name?: string;
+  email_opt_in: boolean;
+  latitude?: number;
+  longitude?: number;
+  location_updated_at?: string;
   created_at: string;
   updated_at?: string;
 }
