@@ -1,12 +1,12 @@
 """Bear Detection System - Uploads API."""
 
-import os
 import shutil
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -54,6 +54,75 @@ def _resolve_safe_zip_path(name: str, base_dir: Path) -> Optional[Path]:
     return target_path
 
 
+def _sanitize_filename(filename: str | None, default_name: str) -> str:
+    """Normalize user-provided filename to a safe basename."""
+    if not filename:
+        return default_name
+
+    normalized = filename.replace("\\", "/")
+    basename = Path(normalized).name
+    return basename or default_name
+
+
+def _save_upload_file(file_obj, destination: Path, max_bytes: int | None = None) -> int:
+    """Save uploaded file to disk and return file size."""
+    total = 0
+
+    with open(destination, "wb") as buffer:
+        while True:
+            chunk = file_obj.read(1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if max_bytes is not None and total > max_bytes:
+                buffer.close()
+                destination.unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="ZIPファイルが大きすぎます",
+                )
+            buffer.write(chunk)
+
+    return total
+
+
+def _extract_zip_with_limits(zip_path: Path, extracted_dir: Path, max_bytes: int) -> None:
+    """Extract ZIP safely with path and size guards."""
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        members = [m for m in zip_ref.namelist() if not m.endswith("/")]
+        if not members:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ZIP内にファイルがありません",
+            )
+
+        total_extracted = 0
+        for member in members:
+            safe_path = _resolve_safe_zip_path(member, extracted_dir)
+            if safe_path is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="ZIP内のパスが不正です",
+                )
+
+            info = zip_ref.getinfo(member)
+            if info.file_size > max_bytes:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="ZIP内のファイルが大きすぎます",
+                )
+
+            total_extracted += info.file_size
+            if total_extracted > max_bytes:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="ZIP展開後の合計サイズが大きすぎます",
+                )
+
+            with zip_ref.open(member) as source, open(safe_path, "wb") as dest:
+                shutil.copyfileobj(source, dest)
+
+
 @router.post("", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def create_upload(
     file: UploadFile = File(...),
@@ -94,13 +163,14 @@ async def create_upload(
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{timestamp}_{file.filename}"
+    original_name = _sanitize_filename(
+        file.filename,
+        "upload.mp4" if file_type == "video" else "upload.jpg",
+    )
+    filename = f"{timestamp}_{original_name}"
     file_path = upload_dir / filename
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    file_size = os.path.getsize(file_path)
+    file_size = await run_in_threadpool(_save_upload_file, file.file, file_path, None)
 
     db_upload = Upload(
         camera_id=camera_id,
@@ -165,27 +235,12 @@ async def create_frame_upload(
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{timestamp}_{zip_file.filename}"
+    original_name = _sanitize_filename(zip_file.filename, "frames.zip")
+    filename = f"{timestamp}_{original_name}"
     zip_path = upload_dir / filename
 
     max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
-    total_read = 0
-    with open(zip_path, "wb") as buffer:
-        while True:
-            chunk = zip_file.file.read(1024 * 1024)
-            if not chunk:
-                break
-            total_read += len(chunk)
-            if total_read > max_bytes:
-                buffer.close()
-                zip_path.unlink(missing_ok=True)
-                raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    detail="ZIPファイルが大きすぎます",
-                )
-            buffer.write(chunk)
-
-    file_size = os.path.getsize(zip_path)
+    file_size = await run_in_threadpool(_save_upload_file, zip_file.file, zip_path, max_bytes)
 
     db_upload = Upload(
         camera_id=camera_id,
@@ -206,39 +261,7 @@ async def create_frame_upload(
     extracted_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            members = [m for m in zip_ref.namelist() if not m.endswith("/")]
-            if not members:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="ZIP内にファイルがありません",
-                )
-
-            total_extracted = 0
-            for member in members:
-                safe_path = _resolve_safe_zip_path(member, extracted_dir)
-                if safe_path is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="ZIP内のパスが不正です",
-                    )
-
-                info = zip_ref.getinfo(member)
-                if info.file_size > max_bytes:
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail="ZIP内のファイルが大きすぎます",
-                    )
-
-                total_extracted += info.file_size
-                if total_extracted > max_bytes:
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail="ZIP展開後の合計サイズが大きすぎます",
-                    )
-
-                with zip_ref.open(member) as source, open(safe_path, "wb") as dest:
-                    shutil.copyfileobj(source, dest)
+        await run_in_threadpool(_extract_zip_with_limits, zip_path, extracted_dir, max_bytes)
     except HTTPException:
         shutil.rmtree(extracted_dir, ignore_errors=True)
         raise

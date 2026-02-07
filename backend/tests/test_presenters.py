@@ -10,6 +10,7 @@ def test_build_image_url_uses_relative_storage_path(monkeypatch):
     monkeypatch.setattr(settings, "LOCAL_STORAGE_PATH", "/storage")
 
     assert build_image_url("/storage/processed/1/frame.jpg") == "/api/v1/images/processed/1/frame.jpg"
+    assert build_image_url("/tmp/processed/1/frame.jpg") == "/api/v1/images/tmp/processed/1/frame.jpg"
 
 
 def test_build_sighting_response_converts_numeric_fields(monkeypatch):

@@ -190,3 +190,9 @@ def test_resolve_safe_zip_path_validation(tmp_path):
     assert uploads._resolve_safe_zip_path("../escape.jpg", base_dir) is None
     assert uploads._resolve_safe_zip_path("nested/frame.jpg", base_dir) is None
     assert uploads._resolve_safe_zip_path("/absolute/path.jpg", base_dir) is None
+
+
+def test_sanitize_filename_removes_directory_components():
+    assert uploads._sanitize_filename("../secret.jpg", "fallback.jpg") == "secret.jpg"
+    assert uploads._sanitize_filename("..\\windows\\secret.jpg", "fallback.jpg") == "secret.jpg"
+    assert uploads._sanitize_filename("", "fallback.jpg") == "fallback.jpg"

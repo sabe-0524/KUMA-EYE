@@ -80,10 +80,10 @@ def execute_upload_processing(
             if not notification_dispatched and alert_level in NOTIFIABLE_ALERT_LEVELS:
                 try:
                     notify_for_alert(db, alert_id)
+                    notification_dispatched = True
                 except Exception:
                     db.rollback()
                     logger.exception("Notification failed for alert_id=%s", alert_id)
-                notification_dispatched = True
 
         upload.status = "completed"
         upload.frame_count = frame_count
@@ -103,6 +103,7 @@ def execute_upload_processing(
         }
     except Exception as exc:
         logger.exception("Error processing upload %s", upload_id)
+        db.rollback()
         _mark_upload_failed(db, upload_id, str(exc))
         return {"status": "failed", "upload_id": upload_id, "error": str(exc)}
     finally:

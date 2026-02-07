@@ -14,6 +14,6 @@ def build_image_url(image_path: str | None) -> str | None:
     if image_path.startswith(storage_path):
         relative_path = image_path[len(storage_path):].lstrip("/")
     else:
-        relative_path = image_path
+        relative_path = image_path.lstrip("/")
 
     return f"/api/v1/images/{relative_path}"
