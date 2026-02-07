@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     # Notification
     NOTIFY_RADIUS_METERS: int = 5000
     NOTIFY_STALE_MINUTES: int = 30
+    GEOCODING_ENABLED: bool = True
+    GEOCODING_TIMEOUT_SECONDS: int = 5
+    GEOCODING_USER_AGENT: str = "KUMA-EYE/1.0 (bear-alert-notifier)"
+    GEOCODING_BASE_URL: str = "https://nominatim.openstreetmap.org"
 
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
