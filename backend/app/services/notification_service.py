@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from geoalchemy2 import Geography
-from sqlalchemy import cast, func
+from sqlalchemy import cast, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -97,6 +97,17 @@ def _get_nearby_recipients(db: Session, alert: Alert) -> list[User]:
     )
 
 
+def _try_lock_notification_slot(db: Session, alert_id: int, user_id: int) -> bool:
+    """
+    同一(alert_id, user_id)の通知送信を排他するため、トランザクションスコープのadvisory lockを取得する。
+    """
+    lock_key = (int(alert_id) << 32) | int(user_id)
+    locked = db.execute(
+        select(func.pg_try_advisory_xact_lock(lock_key))
+    ).scalar_one()
+    return bool(locked)
+
+
 def notify_for_alert(db: Session, alert_id: int) -> dict[str, Any]:
     """
     指定アラートに対して近傍ユーザーへメール通知する
@@ -131,6 +142,10 @@ def notify_for_alert(db: Session, alert_id: int) -> dict[str, Any]:
     body = _build_email_body(alert)
 
     for user in recipients:
+        if not _try_lock_notification_slot(db, alert.id, user.id):
+            stats["skipped"] += 1
+            continue
+
         exists = (
             db.query(AlertNotification.id)
             .filter(AlertNotification.alert_id == alert.id)

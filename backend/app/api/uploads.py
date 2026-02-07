@@ -162,6 +162,7 @@ def process_upload(upload_id: int, frame_interval: int = 5):
                         try:
                             notify_for_alert(db, alert.id)
                         except Exception:
+                            db.rollback()
                             logger.exception("Notification failed for alert_id=%s", alert.id)
                         notification_dispatched = True
         
@@ -234,6 +235,7 @@ def process_upload(upload_id: int, frame_interval: int = 5):
                     try:
                         notify_for_alert(db, alert.id)
                     except Exception:
+                        db.rollback()
                         logger.exception("Notification failed for alert_id=%s", alert.id)
                     notification_dispatched = True
         
@@ -366,6 +368,7 @@ def process_frame_upload(upload_id: int, frames_dir: str, frame_interval: int = 
                     try:
                         notify_for_alert(db, alert.id)
                     except Exception:
+                        db.rollback()
                         logger.exception("Notification failed for alert_id=%s", alert.id)
                     notification_dispatched = True
 
