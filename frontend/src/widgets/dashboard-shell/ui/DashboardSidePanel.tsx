@@ -50,7 +50,7 @@ export const DashboardSidePanel: React.FC<DashboardSidePanelProps> = ({
       <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white/95 backdrop-blur-md border-l border-slate-200/70 shadow-2xl flex flex-col pointer-events-auto">
         <div className="flex items-center justify-between p-4 border-b border-slate-200/70 bg-slate-50/70">
           <h2 className="font-semibold text-slate-900">{getPanelTitle(activePanel)}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-200/60 rounded">
+          <button onClick={onClose} className="p-1 hover:bg-slate-200/60 rounded" aria-label="閉じる">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>

@@ -50,7 +50,7 @@ const appendUploadRequestOptions = (
   formData: FormData,
   options: UploadRequestOptions
 ): void => {
-  if (options.camera_id) {
+  if (options.camera_id !== undefined) {
     formData.append('camera_id', options.camera_id.toString());
   }
   if (options.latitude !== undefined) {
@@ -59,7 +59,7 @@ const appendUploadRequestOptions = (
   if (options.longitude !== undefined) {
     formData.append('longitude', options.longitude.toString());
   }
-  if (options.frame_interval) {
+  if (options.frame_interval !== undefined) {
     formData.append('frame_interval', options.frame_interval.toString());
   }
 };

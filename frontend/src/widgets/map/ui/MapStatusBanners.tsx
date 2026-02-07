@@ -1,9 +1,9 @@
 import React from 'react';
-import type { LatLng } from '@/shared/types';
+import type { DisplayMode, LatLng } from '@/shared/types';
 import type { LocationStatus } from '@/widgets/map/model/useMapSightings';
 
 interface MapStatusBannersProps {
-  displayMode: 'national' | 'nearby';
+  displayMode: DisplayMode;
   locationStatus: LocationStatus;
   selectedCenter: LatLng | null;
   cameraPlacementMode: boolean;

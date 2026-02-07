@@ -29,7 +29,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             <span className="text-sm">{userLabel}</span>
           </div>
 
-          <button onClick={onRefresh} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="地図を更新">
+          <button
+            onClick={onRefresh}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            title="地図を更新"
+            aria-label="地図を更新"
+          >
             <RefreshCw className="w-5 h-5" />
           </button>
 
@@ -37,6 +42,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             onClick={onOpenSettings}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
             title="設定"
+            aria-label="設定"
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -47,6 +53,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               activePanel === 'camera' ? 'bg-white/15' : 'hover:bg-white/10'
             }`}
             title="カメラ登録"
+            aria-label="カメラ登録"
           >
             <Camera className="w-5 h-5" />
           </button>
@@ -57,6 +64,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               activePanel === 'upload' ? 'bg-white/15' : 'hover:bg-white/10'
             }`}
             title="映像をアップロード"
+            aria-label="映像をアップロード"
           >
             <Upload className="w-5 h-5" />
           </button>
@@ -67,6 +75,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               activePanel === 'alerts' ? 'bg-white/15' : 'hover:bg-white/10'
             }`}
             title="警報一覧"
+            aria-label="警報一覧"
           >
             <Bell className="w-5 h-5" />
           </button>
@@ -75,6 +84,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             onClick={onLogout}
             className="p-2 hover:bg-red-500/80 rounded-lg transition-colors"
             title="ログアウト"
+            aria-label="ログアウト"
           >
             <LogOut className="w-5 h-5" />
           </button>
