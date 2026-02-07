@@ -59,8 +59,21 @@ def _build_image_attachment(sighting: Sighting | None) -> EmailAttachment | None
     if not sighting or not sighting.image_path:
         return None
 
-    image_path = Path(sighting.image_path)
+    try:
+        image_path = Path(sighting.image_path).resolve()
+        storage_root = Path(settings.LOCAL_STORAGE_PATH).resolve()
+    except Exception:
+        return None
+
+    if storage_root not in image_path.parents:
+        logger.warning("Skip attachment outside storage root: %s", image_path)
+        return None
+
     if not image_path.exists() or not image_path.is_file():
+        return None
+
+    if image_path.stat().st_size > settings.EMAIL_ATTACHMENT_MAX_BYTES:
+        logger.warning("Skip oversized attachment: %s", image_path)
         return None
 
     suffix = image_path.suffix.lower()

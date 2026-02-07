@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections import OrderedDict
 from dataclasses import dataclass
 
 import httpx
@@ -18,7 +19,7 @@ class AddressResult:
     municipality: str | None
 
 
-_cache: dict[tuple[float, float], AddressResult | None] = {}
+_cache: OrderedDict[tuple[float, float], AddressResult | None] = OrderedDict()
 
 
 def _cache_key(latitude: float, longitude: float) -> tuple[float, float]:
@@ -51,6 +52,7 @@ def reverse_geocode(latitude: float, longitude: float) -> AddressResult | None:
 
     key = _cache_key(latitude, longitude)
     if key in _cache:
+        _cache.move_to_end(key)
         return _cache[key]
 
     try:
@@ -69,6 +71,9 @@ def reverse_geocode(latitude: float, longitude: float) -> AddressResult | None:
         response.raise_for_status()
         result = _extract_address_components(response.json())
         _cache[key] = result
+        max_size = max(1, int(settings.GEOCODING_CACHE_MAX_SIZE))
+        while len(_cache) > max_size:
+            _cache.popitem(last=False)
         return result
     except Exception:
         logger.exception("Reverse geocoding failed for lat=%s lon=%s", latitude, longitude)

@@ -103,7 +103,43 @@ def test_to_absolute_url_uses_app_base_url(monkeypatch):
 
 
 def test_notify_for_alert_sends_attachment(monkeypatch, tmp_path):
-    image_file = tmp_path / "detected_000001.jpg"
+    storage_root = tmp_path / "storage"
+    image_dir = storage_root / "processed" / "11"
+    image_dir.mkdir(parents=True)
+    image_file = image_dir / "detected_000001.jpg"
+    image_file.write_bytes(b"jpeg-content")
+
+    alert = _build_alert_with_sighting(image_path=str(image_file))
+    recipient = User(id=99, email="to@example.com", email_opt_in=True)
+    email_service = StubEmailService()
+
+    monkeypatch.setattr("app.services.notification_service._get_alert", lambda db, alert_id: alert)
+    monkeypatch.setattr(
+        "app.services.notification_service._get_nearby_recipients",
+        lambda db, target_alert: [recipient],
+    )
+    monkeypatch.setattr("app.services.notification_service._try_lock_notification_slot", lambda *args: True)
+    monkeypatch.setattr("app.services.notification_service.get_email_service", lambda: email_service)
+    monkeypatch.setattr("app.services.notification_service.settings.LOCAL_STORAGE_PATH", str(storage_root))
+    monkeypatch.setattr("app.services.notification_service.settings.EMAIL_ATTACHMENT_MAX_BYTES", 1024 * 1024)
+    monkeypatch.setattr(
+        "app.services.notification_service.reverse_geocode",
+        lambda lat, lng: AddressResult(prefecture="東京都", municipality="新宿区"),
+    )
+
+    result = notify_for_alert(FakeDB(), 12)
+
+    assert result["sent"] == 1
+    assert len(email_service.calls) == 1
+    attachments = email_service.calls[0]["attachments"]
+    assert isinstance(attachments, list)
+    assert len(attachments) == 1
+    assert isinstance(attachments[0], EmailAttachment)
+    assert attachments[0].filename == "detected_000001.jpg"
+
+
+def test_notify_for_alert_skips_attachment_outside_storage(monkeypatch, tmp_path):
+    image_file = tmp_path / "outside.jpg"
     image_file.write_bytes(b"jpeg-content")
 
     alert = _build_alert_with_sighting(image_path=str(image_file))
@@ -121,13 +157,41 @@ def test_notify_for_alert_sends_attachment(monkeypatch, tmp_path):
         "app.services.notification_service.reverse_geocode",
         lambda lat, lng: AddressResult(prefecture="東京都", municipality="新宿区"),
     )
+    monkeypatch.setattr("app.services.notification_service.settings.LOCAL_STORAGE_PATH", str(tmp_path / "storage"))
+    monkeypatch.setattr("app.services.notification_service.settings.EMAIL_ATTACHMENT_MAX_BYTES", 1024 * 1024)
 
     result = notify_for_alert(FakeDB(), 12)
 
     assert result["sent"] == 1
-    assert len(email_service.calls) == 1
-    attachments = email_service.calls[0]["attachments"]
-    assert isinstance(attachments, list)
-    assert len(attachments) == 1
-    assert isinstance(attachments[0], EmailAttachment)
-    assert attachments[0].filename == "detected_000001.jpg"
+    assert email_service.calls[0]["attachments"] is None
+
+
+def test_notify_for_alert_skips_oversized_attachment(monkeypatch, tmp_path):
+    storage_root = tmp_path / "storage"
+    image_dir = storage_root / "processed" / "11"
+    image_dir.mkdir(parents=True)
+    image_file = image_dir / "detected_000001.jpg"
+    image_file.write_bytes(b"0123456789")
+
+    alert = _build_alert_with_sighting(image_path=str(image_file))
+    recipient = User(id=99, email="to@example.com", email_opt_in=True)
+    email_service = StubEmailService()
+
+    monkeypatch.setattr("app.services.notification_service._get_alert", lambda db, alert_id: alert)
+    monkeypatch.setattr(
+        "app.services.notification_service._get_nearby_recipients",
+        lambda db, target_alert: [recipient],
+    )
+    monkeypatch.setattr("app.services.notification_service._try_lock_notification_slot", lambda *args: True)
+    monkeypatch.setattr("app.services.notification_service.get_email_service", lambda: email_service)
+    monkeypatch.setattr(
+        "app.services.notification_service.reverse_geocode",
+        lambda lat, lng: AddressResult(prefecture="東京都", municipality="新宿区"),
+    )
+    monkeypatch.setattr("app.services.notification_service.settings.LOCAL_STORAGE_PATH", str(storage_root))
+    monkeypatch.setattr("app.services.notification_service.settings.EMAIL_ATTACHMENT_MAX_BYTES", 5)
+
+    result = notify_for_alert(FakeDB(), 12)
+
+    assert result["sent"] == 1
+    assert email_service.calls[0]["attachments"] is None
