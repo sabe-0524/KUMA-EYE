@@ -3,7 +3,7 @@ from datetime import datetime
 from app.models.database import Alert, Sighting, Upload, User
 from app.services.email_service import EmailAttachment
 from app.services.geocoding_service import AddressResult
-from app.services.notification_service import _build_email_body, notify_for_alert
+from app.services.notification_service import _build_email_body, _to_absolute_url, notify_for_alert
 
 
 class _EmptyAlertNotificationQuery:
@@ -92,6 +92,14 @@ def test_build_email_body_fallback_when_address_unavailable(monkeypatch):
 
     assert "住所: 取得失敗（緯度経度を参照）" in body
     assert "検出画像: このメールに添付しています。" in body
+
+
+def test_to_absolute_url_uses_app_base_url(monkeypatch):
+    monkeypatch.setattr("app.services.notification_service.settings.APP_BASE_URL", "https://api.example.com")
+
+    url = _to_absolute_url("/api/v1/images/processed/11/detected.jpg")
+
+    assert url == "https://api.example.com/api/v1/images/processed/11/detected.jpg"
 
 
 def test_notify_for_alert_sends_attachment(monkeypatch, tmp_path):

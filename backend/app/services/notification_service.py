@@ -36,6 +36,14 @@ def _build_google_maps_url(latitude: float, longitude: float) -> str:
     return f"https://www.google.com/maps?q={latitude:.6f},{longitude:.6f}"
 
 
+def _to_absolute_url(path_or_url: str | None) -> str | None:
+    if not path_or_url:
+        return None
+    if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
+        return path_or_url
+    return f"{settings.APP_BASE_URL.rstrip('/')}/{path_or_url.lstrip('/')}"
+
+
 def _format_address(latitude: float, longitude: float) -> str:
     address = reverse_geocode(latitude, longitude)
     if not address:
@@ -209,7 +217,7 @@ def notify_for_alert(db: Session, alert_id: int) -> dict[str, Any]:
     email_service = get_email_service()
     subject = _build_email_subject(alert.alert_level)
     attachment = _build_image_attachment(alert.sighting)
-    image_url = build_image_url(alert.sighting.image_path) if alert.sighting else None
+    image_url = _to_absolute_url(build_image_url(alert.sighting.image_path) if alert.sighting else None)
     body = _build_email_body(alert, image_url=image_url, has_attachment=attachment is not None)
     attachments = [attachment] if attachment else None
 

@@ -72,5 +72,4 @@ def reverse_geocode(latitude: float, longitude: float) -> AddressResult | None:
         return result
     except Exception:
         logger.exception("Reverse geocoding failed for lat=%s lon=%s", latitude, longitude)
-        _cache[key] = None
         return None

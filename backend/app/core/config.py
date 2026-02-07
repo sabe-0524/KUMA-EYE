@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     # Application
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api/v1"
+    APP_BASE_URL: str = "http://localhost:8000"
     
     class Config:
         env_file = ".env"
