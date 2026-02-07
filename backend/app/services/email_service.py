@@ -1,17 +1,34 @@
 """
 Bear Detection System - SMTP Email Service
 """
+import logging
 import smtplib
 import ssl
+from dataclasses import dataclass
 from email.message import EmailMessage
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class EmailAttachment:
+    filename: str
+    content: bytes
+    mime_type: str = "application/octet-stream"
 
 
 class SMTPEmailService:
     """SMTP経由でメールを送信するサービス"""
 
-    def send_email(self, to_email: str, subject: str, body: str) -> None:
+    def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        body: str,
+        attachments: list[EmailAttachment] | None = None,
+    ) -> None:
         if not settings.SMTP_HOST:
             raise RuntimeError("SMTP_HOST is not configured")
         if not settings.SMTP_FROM:
@@ -22,6 +39,21 @@ class SMTPEmailService:
         message["To"] = to_email
         message["Subject"] = subject
         message.set_content(body)
+        for attachment in attachments or []:
+            try:
+                maintype, subtype = attachment.mime_type.split("/", 1)
+                message.add_attachment(
+                    attachment.content,
+                    maintype=maintype,
+                    subtype=subtype,
+                    filename=attachment.filename,
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to attach file. filename=%s to=%s",
+                    attachment.filename,
+                    to_email,
+                )
 
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as smtp:
             if settings.SMTP_USE_TLS:
