@@ -23,7 +23,8 @@ export const NotificationSettingsCard: React.FC = () => {
   const { profile, locationSyncStatus, locationSyncError } = useAuth();
   const { isSaving, error, updateEmailOptIn } = useNotificationSettings();
 
-  const emailOptIn = profile?.email_opt_in ?? true;
+  const emailOptIn = profile?.email_opt_in ?? false;
+  const isProfileReady = profile !== null;
   const updatedAt = profile?.location_updated_at
     ? new Date(profile.location_updated_at).toLocaleString('ja-JP')
     : '未送信';
@@ -47,7 +48,7 @@ export const NotificationSettingsCard: React.FC = () => {
           onClick={() => {
             void updateEmailOptIn(!emailOptIn);
           }}
-          disabled={isSaving}
+          disabled={isSaving || !isProfileReady}
           className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
             emailOptIn ? 'bg-emerald-600' : 'bg-slate-300'
           } disabled:opacity-60`}
@@ -79,6 +80,12 @@ export const NotificationSettingsCard: React.FC = () => {
         <div className="text-slate-600">
           最終位置更新: <span className="font-medium text-slate-900">{updatedAt}</span>
         </div>
+
+        {!isProfileReady && (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            通知設定を読み込み中です...
+          </div>
+        )}
 
         {(error || locationSyncError) && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

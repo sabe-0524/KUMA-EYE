@@ -24,12 +24,11 @@ from app.models.schemas import (
     FileType
 )
 from app.services.detection import get_detection_service
-from app.services.notification_service import notify_for_alert
+from app.services.notification_service import NOTIFIABLE_ALERT_LEVELS, notify_for_alert
 from app.services.video_processor import get_video_processor
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 logger = logging.getLogger(__name__)
-NOTIFIABLE_ALERT_LEVELS = {"critical", "warning", "caution"}
 
 
 def get_file_type(content_type: str) -> Optional[str]:

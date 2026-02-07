@@ -137,23 +137,26 @@ def notify_for_alert(db: Session, alert_id: int) -> dict[str, Any]:
     if not recipients:
         return stats
 
+    existing_user_ids = {
+        user_id
+        for (user_id,) in (
+            db.query(AlertNotification.user_id)
+            .filter(AlertNotification.alert_id == alert.id)
+            .filter(AlertNotification.channel == "email")
+            .all()
+        )
+    }
+
     email_service = get_email_service()
     subject = _build_email_subject(alert.alert_level)
     body = _build_email_body(alert)
 
     for user in recipients:
-        if not _try_lock_notification_slot(db, alert.id, user.id):
+        if user.id in existing_user_ids:
             stats["skipped"] += 1
             continue
 
-        exists = (
-            db.query(AlertNotification.id)
-            .filter(AlertNotification.alert_id == alert.id)
-            .filter(AlertNotification.user_id == user.id)
-            .filter(AlertNotification.channel == "email")
-            .first()
-        )
-        if exists:
+        if not _try_lock_notification_slot(db, alert.id, user.id):
             stats["skipped"] += 1
             continue
 
@@ -169,6 +172,7 @@ def notify_for_alert(db: Session, alert_id: int) -> dict[str, Any]:
             db.add(notification)
             db.commit()
             stats["sent"] += 1
+            existing_user_ids.add(user.id)
         except Exception as exc:
             db.rollback()
             logger.exception(

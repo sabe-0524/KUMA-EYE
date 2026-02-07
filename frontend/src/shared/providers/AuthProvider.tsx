@@ -64,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [locationSyncStatus, setLocationSyncStatus] = useState<LocationSyncStatus>('idle');
   const [locationSyncError, setLocationSyncError] = useState<string | null>(null);
   const lastSyncedUidRef = useRef<string | null>(null);
+  const activeUidRef = useRef<string | null>(null);
   const watchStopRef = useRef<(() => void) | null>(null);
   const lastSentCoordinatesRef = useRef<Coordinates | null>(null);
   const lastSentAtRef = useRef<number>(0);
@@ -88,9 +89,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(null);
       return null;
     }
+    const requestUid = user.uid;
     try {
       const idToken = await user.getIdToken();
       const latestProfile = await getMyProfile(idToken);
+      if (activeUidRef.current !== requestUid) {
+        return null;
+      }
       setProfile(latestProfile);
       return latestProfile;
     } catch (error) {
@@ -103,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user || !profile?.email_opt_in || sendingLocationRef.current) {
       return;
     }
+    const requestUid = user.uid;
 
     const now = Date.now();
     const lastCoordinates = lastSentCoordinatesRef.current;
@@ -128,6 +134,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         coordinates.longitude,
         idToken
       );
+      if (activeUidRef.current !== requestUid) {
+        return;
+      }
       setProfile(updatedProfile);
       setLocationSyncStatus('watching');
       setLocationSyncError(null);
@@ -135,6 +144,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastSentAtRef.current = now;
     } catch (error) {
       console.error('位置情報同期エラー:', error);
+      if (activeUidRef.current !== requestUid) {
+        return;
+      }
       setLocationSyncStatus('error');
       setLocationSyncError('位置情報の同期に失敗しました。');
     } finally {
@@ -146,12 +158,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       setLoading(false);
+      activeUidRef.current = user?.uid ?? null;
 
       if (user) {
+        const requestUid = user.uid;
         if (lastSyncedUidRef.current !== user.uid) {
           try {
             const idToken = await user.getIdToken();
             const synced = await syncCurrentUser(idToken);
+            if (activeUidRef.current !== requestUid) {
+              return;
+            }
             setProfile(synced.user);
             lastSyncedUidRef.current = user.uid;
           } catch (error) {
@@ -160,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else {
         lastSyncedUidRef.current = null;
+        activeUidRef.current = null;
         stopLocationWatch();
         setProfile(null);
         setLocationSyncStatus('idle');
