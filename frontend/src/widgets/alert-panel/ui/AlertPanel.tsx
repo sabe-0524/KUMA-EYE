@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { Bell, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bell, CheckCircle, AlertTriangle } from 'lucide-react';
 import { getUnacknowledgedAlerts, acknowledgeAlert, getAlertCount, getFullImageUrl } from '@/shared/api';
-import type { Alert, AlertCount, DisplayMode } from '@/shared/types';
+import { queryKeys } from '@/shared/lib/queryKeys';
+import type { Alert, AlertCount, AlertListResponse, DisplayMode } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis, alertLevelColors } from '@/shared/types';
-import { formatDateTime, getRelativeTime } from '@/shared/lib/utils';
+import { getRelativeTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
 
 interface AlertPanelProps {
@@ -21,10 +23,62 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
   displayMode = 'national',
   nearbyBounds = null,
 }) => {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [alertCount, setAlertCount] = useState<AlertCount>({ unacknowledged: 0, critical: 0 });
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const alertsQuery = useQuery({
+    queryKey: queryKeys.alerts.unacknowledged(20),
+    queryFn: () => getUnacknowledgedAlerts(20),
+    refetchInterval: refreshInterval,
+  });
+
+  const alertCountQuery = useQuery({
+    queryKey: queryKeys.alerts.count,
+    queryFn: getAlertCount,
+    refetchInterval: refreshInterval,
+  });
+
+  const acknowledgeMutation = useMutation({
+    mutationFn: (alertId: number) => acknowledgeAlert(alertId),
+    onMutate: async (alertId: number) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: queryKeys.alerts.unacknowledged(20) }),
+        queryClient.cancelQueries({ queryKey: queryKeys.alerts.count }),
+      ]);
+
+      const previousAlerts = queryClient.getQueryData<AlertListResponse>(queryKeys.alerts.unacknowledged(20));
+      const previousCount = queryClient.getQueryData<AlertCount>(queryKeys.alerts.count);
+
+      if (previousAlerts) {
+        queryClient.setQueryData<AlertListResponse>(queryKeys.alerts.unacknowledged(20), {
+          ...previousAlerts,
+          alerts: previousAlerts.alerts.filter((alert) => alert.id !== alertId),
+        });
+      }
+
+      if (previousCount) {
+        queryClient.setQueryData<AlertCount>(queryKeys.alerts.count, {
+          ...previousCount,
+          unacknowledged: Math.max(0, previousCount.unacknowledged - 1),
+        });
+      }
+
+      return { previousAlerts, previousCount };
+    },
+    onError: (_error, _alertId, context) => {
+      if (!context) return;
+
+      if (context.previousAlerts) {
+        queryClient.setQueryData(queryKeys.alerts.unacknowledged(20), context.previousAlerts);
+      }
+      if (context.previousCount) {
+        queryClient.setQueryData(queryKeys.alerts.count, context.previousCount);
+      }
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all });
+    },
+  });
 
   const isWithinBounds = (lat: number, lng: number, bounds: string): boolean => {
     const [swLat, swLng, neLat, neLng] = bounds.split(',').map(Number);
@@ -34,49 +88,35 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
     return lat >= swLat && lat <= neLat && lng >= swLng && lng <= neLng;
   };
 
-  const filteredAlerts = alerts.filter((alert) => {
-    if (displayMode !== 'nearby') return true;
-    if (!nearbyBounds || !alert.sighting) return false;
-    return isWithinBounds(alert.sighting.latitude, alert.sighting.longitude, nearbyBounds);
-  });
+  const alerts = useMemo(() => {
+    return (alertsQuery.data?.alerts ?? []).filter((alert) => alert.alert_level !== 'low');
+  }, [alertsQuery.data?.alerts]);
 
-  const displayedCount = displayMode === 'nearby'
-    ? {
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter((alert) => {
+      if (displayMode !== 'nearby') return true;
+      if (!nearbyBounds || !alert.sighting) return false;
+      return isWithinBounds(alert.sighting.latitude, alert.sighting.longitude, nearbyBounds);
+    });
+  }, [alerts, displayMode, nearbyBounds]);
+
+  const displayedCount = useMemo(() => {
+    if (displayMode === 'nearby') {
+      return {
         unacknowledged: filteredAlerts.length,
         critical: filteredAlerts.filter((alert) => alert.alert_level === 'critical').length,
-      }
-    : alertCount;
-
-  const fetchAlerts = useCallback(async () => {
-    try {
-      const [alertsResponse, countResponse] = await Promise.all([
-        getUnacknowledgedAlerts(20),
-        getAlertCount(),
-      ]);
-      setAlerts(alertsResponse.alerts.filter((alert) => alert.alert_level !== 'low'));
-      setAlertCount(countResponse);
-    } catch (err) {
-      console.error('Failed to fetch alerts:', err);
-    } finally {
-      setLoading(false);
+      };
     }
-  }, []);
 
-  useEffect(() => {
-    fetchAlerts();
-    const interval = setInterval(fetchAlerts, refreshInterval);
-    return () => clearInterval(interval);
-  }, [fetchAlerts, refreshInterval]);
+    return alertCountQuery.data ?? { unacknowledged: 0, critical: 0 };
+  }, [alertCountQuery.data, displayMode, filteredAlerts]);
+
+  const loading = alertsQuery.isPending || alertCountQuery.isPending;
 
   const handleAcknowledge = async (alertId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await acknowledgeAlert(alertId);
-      setAlerts(alerts.filter(a => a.id !== alertId));
-      setAlertCount(prev => ({
-        ...prev,
-        unacknowledged: Math.max(0, prev.unacknowledged - 1),
-      }));
+      await acknowledgeMutation.mutateAsync(alertId);
     } catch (err) {
       console.error('Failed to acknowledge alert:', err);
     }
@@ -84,7 +124,6 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
 
   return (
     <div className="bg-white/95 backdrop-blur rounded-xl border border-slate-200/70 shadow-sm h-full flex flex-col">
-      {/* ヘッダー */}
       <div className="p-4 border-b border-slate-200/70 bg-slate-50/60">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
@@ -105,12 +144,9 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
         )}
       </div>
 
-      {/* 警報リスト */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="p-4 text-center text-slate-500">
-            読み込み中...
-          </div>
+          <div className="p-4 text-center text-slate-500">読み込み中...</div>
         ) : filteredAlerts.length === 0 ? (
           <div className="p-8 text-center">
             <CheckCircle className="w-12 h-12 mx-auto text-green-500 mb-2" />
@@ -125,29 +161,21 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
                 onClick={() => onAlertClick?.(alert)}
               >
                 <div className="flex items-start gap-3">
-                  {/* レベルインジケーター */}
                   <div
                     className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
                     style={{ backgroundColor: alertLevelColors[alert.alert_level] }}
                   />
-                  
+
                   <div className="flex-1 min-w-0">
-                    {/* 警報レベルと時刻 */}
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-medium text-sm">
                         {alertLevelEmojis[alert.alert_level]} {alertLevelLabels[alert.alert_level]}
                       </span>
-                      <span className="text-xs text-slate-500">
-                        {getRelativeTime(alert.notified_at)}
-                      </span>
+                      <span className="text-xs text-slate-500">{getRelativeTime(alert.notified_at)}</span>
                     </div>
-                    
-                    {/* メッセージ */}
-                    <p className="text-sm text-slate-700 line-clamp-2">
-                      {alert.message}
-                    </p>
-                    
-                    {/* 目撃情報サムネイル */}
+
+                    <p className="text-sm text-slate-700 line-clamp-2">{alert.message}</p>
+
                     {alert.sighting?.image_url && (
                       <img
                         src={getFullImageUrl(alert.sighting.image_url)}
@@ -159,19 +187,18 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
                         }}
                       />
                     )}
-                    
-                    {/* カメラ名 */}
+
                     {alert.sighting?.camera && (
-                      <p className="text-xs text-slate-500 mt-1">
-                        📹 {alert.sighting.camera.name}
-                      </p>
+                      <p className="text-xs text-slate-500 mt-1">📹 {alert.sighting.camera.name}</p>
                     )}
                   </div>
-                  
-                  {/* 確認ボタン */}
+
                   <button
-                    onClick={(e) => handleAcknowledge(alert.id, e)}
-                    className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                    onClick={(e) => {
+                      void handleAcknowledge(alert.id, e);
+                    }}
+                    disabled={acknowledgeMutation.isPending}
+                    className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-60"
                     title="確認済みにする"
                   >
                     <CheckCircle className="w-5 h-5" />
@@ -183,13 +210,7 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
         )}
       </div>
 
-      {/* 画像モーダル */}
-      {selectedImage && (
-        <ImageModal
-          imageUrl={selectedImage}
-          onClose={() => setSelectedImage(null)}
-        />
-      )}
+      {selectedImage && <ImageModal imageUrl={selectedImage} onClose={() => setSelectedImage(null)} />}
     </div>
   );
 };

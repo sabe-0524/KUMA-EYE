@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSightings } from '@/shared/api';
+import { queryKeys } from '@/shared/lib/queryKeys';
 import { getCurrentPositionWithFallback } from '@/shared/lib/geolocation';
 import type { DisplayMode, LatLng, Sighting } from '@/shared/types';
 import { getBoundsFromCenter, NEARBY_RADIUS_KM } from '@/widgets/map/lib/displayBounds';
@@ -38,59 +40,44 @@ export const useMapSightings = ({
   refreshTrigger,
   onDisplayContextChange,
 }: UseMapSightingsArgs): UseMapSightingsResult => {
-  const [sightings, setSightings] = useState<Sighting[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('national');
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
   const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null);
   const [manualLocation, setManualLocation] = useState<LatLng | null>(null);
 
-  const fetchSightings = useCallback(async () => {
-    try {
-      const bounds =
-        displayMode === 'nearby'
-          ? (() => {
-              const center = currentLocation ?? manualLocation;
-              if (!center) return null;
-              return getBoundsFromCenter(center, NEARBY_RADIUS_KM);
-            })()
-          : null;
+  const selectedCenter = useMemo(() => {
+    return currentLocation ?? manualLocation;
+  }, [currentLocation, manualLocation]);
 
-      if (displayMode === 'nearby' && !bounds) {
-        setLoading(false);
-        return;
-      }
+  const nearbyBounds = useMemo(() => {
+    return selectedCenter ? getBoundsFromCenter(selectedCenter, NEARBY_RADIUS_KM) : null;
+  }, [selectedCenter]);
 
+  const requestBounds = displayMode === 'nearby' ? nearbyBounds : null;
+  const canFetchSightings = displayMode !== 'nearby' || Boolean(requestBounds);
+
+  const sightingsQuery = useQuery({
+    queryKey: queryKeys.sightings.list({ bounds: requestBounds, limit: 500 }),
+    queryFn: async () => {
       const response = await getSightings({
         limit: 500,
-        ...(bounds ? { bounds } : {}),
+        ...(requestBounds ? { bounds: requestBounds } : {}),
       });
-      setSightings(response.sightings.filter((sighting) => sighting.alert_level !== 'low'));
-      setError(null);
-    } catch (requestError) {
-      console.error('Failed to fetch sightings:', requestError);
-      setError('目撃情報の取得に失敗しました');
-    } finally {
-      setLoading(false);
-    }
-  }, [displayMode, currentLocation, manualLocation]);
-
-  useEffect(() => {
-    fetchSightings();
-    const interval = setInterval(fetchSightings, refreshInterval);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [fetchSightings, refreshInterval]);
+      return response.sightings.filter((sighting) => sighting.alert_level !== 'low');
+    },
+    enabled: canFetchSightings,
+    refetchInterval: refreshInterval,
+    placeholderData: (previousData) => previousData,
+  });
 
   useEffect(() => {
     if (refreshTrigger > 0) {
-      fetchSightings();
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sightings.all });
     }
-  }, [refreshTrigger, fetchSightings]);
+  }, [queryClient, refreshTrigger]);
 
   useEffect(() => {
     let isActive = true;
@@ -127,14 +114,6 @@ export const useMapSightings = ({
     };
   }, [displayMode]);
 
-  const selectedCenter = useMemo(() => {
-    return currentLocation ?? manualLocation;
-  }, [currentLocation, manualLocation]);
-
-  const nearbyBounds = useMemo(() => {
-    return selectedCenter ? getBoundsFromCenter(selectedCenter, NEARBY_RADIUS_KM) : null;
-  }, [selectedCenter]);
-
   useEffect(() => {
     onDisplayContextChange?.({
       mode: displayMode,
@@ -154,10 +133,12 @@ export const useMapSightings = ({
     setManualLocation(location);
   }, []);
 
+  const loading = canFetchSightings ? sightingsQuery.isPending || (sightingsQuery.isFetching && !sightingsQuery.data) : false;
+
   return {
-    sightings,
+    sightings: sightingsQuery.data ?? [],
     loading,
-    error,
+    error: sightingsQuery.isError ? '目撃情報の取得に失敗しました' : null,
     selectedImage,
     displayMode,
     locationStatus,

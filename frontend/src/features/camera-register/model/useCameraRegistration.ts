@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createCamera, getCameras } from '@/shared/api';
+import { queryKeys } from '@/shared/lib/queryKeys';
 import { getCurrentPositionWithFallback, getGeolocationErrorMessage } from '@/shared/lib/geolocation';
 import type { Camera as CameraType, LatLng } from '@/shared/types';
 import { validateCameraRegistrationInput } from '@/features/camera-register/lib/validation';
@@ -42,6 +44,8 @@ export const useCameraRegistration = ({
   onPlacementModeChange,
   onClearSelectedLocation,
 }: UseCameraRegistrationArgs): UseCameraRegistrationResult => {
+  const queryClient = useQueryClient();
+
   const [name, setName] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
@@ -49,23 +53,14 @@ export const useCameraRegistration = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [cameras, setCameras] = useState<CameraType[]>([]);
-  const [isLoadingCameras, setIsLoadingCameras] = useState(true);
 
-  useEffect(() => {
-    const fetchCameras = async () => {
-      try {
-        const response = await getCameras();
-        setCameras(response.cameras);
-      } catch (requestError) {
-        console.error('Failed to fetch cameras:', requestError);
-      } finally {
-        setIsLoadingCameras(false);
-      }
-    };
-
-    void fetchCameras();
-  }, [success]);
+  const camerasQuery = useQuery({
+    queryKey: queryKeys.cameras.list(),
+    queryFn: async () => {
+      const response = await getCameras();
+      return response.cameras;
+    },
+  });
 
   useEffect(() => {
     if (!selectedLocation) return;
@@ -122,6 +117,8 @@ export const useCameraRegistration = ({
         description: description.trim() || undefined,
       });
 
+      await queryClient.invalidateQueries({ queryKey: queryKeys.cameras.all });
+
       setSuccess(true);
       setName('');
       setLatitude('');
@@ -146,8 +143,8 @@ export const useCameraRegistration = ({
     isSubmitting,
     error,
     success,
-    cameras,
-    isLoadingCameras,
+    cameras: camerasQuery.data ?? [],
+    isLoadingCameras: camerasQuery.isPending,
     setName,
     setLatitude,
     setLongitude,
