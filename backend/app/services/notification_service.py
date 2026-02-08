@@ -3,6 +3,7 @@ Bear Detection System - Alert Notification Service
 """
 import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from geoalchemy2 import Geography
@@ -12,7 +13,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.models.database import Alert, AlertNotification, Sighting, Upload, User
-from app.services.email_service import get_email_service
+from app.presenters.image_url import build_image_url
+from app.services.email_service import EmailAttachment, get_email_service
+from app.services.geocoding_service import reverse_geocode
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +32,74 @@ def _build_email_subject(alert_level: str) -> str:
     return f"[KUMA-EYE] {level_label} クマ検出アラート"
 
 
-def _build_email_body(alert: Alert) -> str:
+def _build_google_maps_url(latitude: float, longitude: float) -> str:
+    return f"https://www.google.com/maps?q={latitude:.6f},{longitude:.6f}"
+
+
+def _to_absolute_url(path_or_url: str | None) -> str | None:
+    if not path_or_url:
+        return None
+    if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
+        return path_or_url
+    return f"{settings.APP_BASE_URL.rstrip('/')}/{path_or_url.lstrip('/')}"
+
+
+def _format_address(latitude: float, longitude: float) -> str:
+    address = reverse_geocode(latitude, longitude)
+    if not address:
+        return "取得失敗（緯度経度を参照）"
+
+    parts = [part for part in (address.prefecture, address.municipality) if part]
+    if not parts:
+        return "取得失敗（緯度経度を参照）"
+    return " ".join(parts)
+
+
+def _build_image_attachment(sighting: Sighting | None) -> EmailAttachment | None:
+    if not sighting or not sighting.image_path:
+        return None
+
+    try:
+        image_path = Path(sighting.image_path).resolve()
+        storage_root = Path(settings.LOCAL_STORAGE_PATH).resolve()
+    except Exception:
+        return None
+
+    if storage_root not in image_path.parents:
+        logger.warning("Skip attachment outside storage root: %s", image_path)
+        return None
+
+    if not image_path.exists() or not image_path.is_file():
+        return None
+
+    if image_path.stat().st_size > settings.EMAIL_ATTACHMENT_MAX_BYTES:
+        logger.warning("Skip oversized attachment: %s", image_path)
+        return None
+
+    suffix = image_path.suffix.lower()
+    mime_type_map = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+    }
+    mime_type = mime_type_map.get(suffix)
+    if not mime_type:
+        return None
+
+    try:
+        return EmailAttachment(
+            filename=image_path.name,
+            content=image_path.read_bytes(),
+            mime_type=mime_type,
+        )
+    except Exception:
+        logger.exception("Failed to read attachment image: %s", image_path)
+        return None
+
+
+def _build_email_body(alert: Alert, image_url: str | None, has_attachment: bool) -> str:
     sighting = alert.sighting
     upload = sighting.upload if sighting else None
     camera = upload.camera if upload else None
@@ -43,15 +113,25 @@ def _build_email_body(alert: Alert) -> str:
     ]
 
     if sighting:
+        latitude = float(sighting.latitude)
+        longitude = float(sighting.longitude)
+        address_text = _format_address(latitude, longitude)
+        map_url = _build_google_maps_url(latitude, longitude)
         lines.extend(
             [
                 f"検出時刻: {sighting.detected_at.isoformat()}",
-                f"位置: 緯度 {float(sighting.latitude):.6f}, 経度 {float(sighting.longitude):.6f}",
+                f"住所: {address_text}",
+                f"位置: 緯度 {latitude:.6f}, 経度 {longitude:.6f}",
+                f"地図: {map_url}",
                 f"検出数: {sighting.bear_count}頭",
                 f"信頼度: {float(sighting.confidence) * 100:.1f}%",
                 f"カメラ: {camera_name}",
             ]
         )
+        if has_attachment:
+            lines.append("検出画像: このメールに添付しています。")
+        elif image_url:
+            lines.append(f"検出画像: {image_url}")
 
     lines.extend(["", "このメールはKUMA-EYE通知システムから自動送信されています。"])
     return "\n".join(lines)
@@ -149,7 +229,10 @@ def notify_for_alert(db: Session, alert_id: int) -> dict[str, Any]:
 
     email_service = get_email_service()
     subject = _build_email_subject(alert.alert_level)
-    body = _build_email_body(alert)
+    attachment = _build_image_attachment(alert.sighting)
+    image_url = _to_absolute_url(build_image_url(alert.sighting.image_path) if alert.sighting else None)
+    body = _build_email_body(alert, image_url=image_url, has_attachment=attachment is not None)
+    attachments = [attachment] if attachment else None
 
     for user in recipients:
         if user.id in existing_user_ids:
@@ -161,7 +244,7 @@ def notify_for_alert(db: Session, alert_id: int) -> dict[str, Any]:
             continue
 
         try:
-            email_service.send_email(user.email, subject, body)
+            email_service.send_email(user.email, subject, body, attachments=attachments)
             notification = AlertNotification(
                 alert_id=alert.id,
                 user_id=user.id,
