@@ -1,5 +1,8 @@
-from app.services.email_service import EmailAttachment, SMTPEmailService
+import pytest
+
 from app.core.config import settings
+from app.services import email_service
+from app.services.email_service import EmailAttachment, SMTPEmailService
 
 
 class FakeSMTP:
@@ -9,6 +12,8 @@ class FakeSMTP:
         self.host = host
         self.port = port
         self.timeout = timeout
+        self.started_tls = False
+        self.logged_in = False
 
     def __enter__(self):
         return self
@@ -17,10 +22,10 @@ class FakeSMTP:
         return False
 
     def starttls(self, context=None):
-        return None
+        self.started_tls = True
 
     def login(self, username, password):
-        return None
+        self.logged_in = True
 
     def send_message(self, message):
         self.__class__.sent_messages.append(message)
@@ -35,6 +40,14 @@ def _setup_smtp(monkeypatch):
     monkeypatch.setattr(settings, "SMTP_PASSWORD", "pass")
     monkeypatch.setattr(settings, "SMTP_FROM", "from@example.com")
 
+
+def test_send_email_requires_host(monkeypatch):
+    svc = SMTPEmailService()
+    monkeypatch.setattr(settings, "SMTP_HOST", "")
+    monkeypatch.setattr(settings, "SMTP_FROM", "from@example.com")
+
+    with pytest.raises(RuntimeError):
+        svc.send_email("a@b.com", "sub", "body")
 
 
 def test_send_email_with_attachment(monkeypatch):
@@ -84,3 +97,10 @@ def test_send_email_with_invalid_attachment_type_continues(monkeypatch):
     assert len(FakeSMTP.sent_messages) == 1
     message = FakeSMTP.sent_messages[0]
     assert not list(message.iter_attachments())
+
+
+def test_get_email_service_singleton(monkeypatch):
+    monkeypatch.setattr(email_service, "_email_service", None)
+    a = email_service.get_email_service()
+    b = email_service.get_email_service()
+    assert a is b

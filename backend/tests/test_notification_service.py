@@ -1,22 +1,31 @@
 from datetime import datetime
+from types import SimpleNamespace
+
+from sqlalchemy.exc import IntegrityError
 
 from app.models.database import Alert, Sighting, Upload, User
 from app.services.email_service import EmailAttachment
 from app.services.geocoding_service import AddressResult
+from app.services import notification_service
 from app.services.notification_service import _build_email_body, _to_absolute_url, notify_for_alert
 
 
 class _EmptyAlertNotificationQuery:
+    def __init__(self, items=None):
+        self.items = items or []
+
     def filter(self, *args, **kwargs):
         return self
 
     def all(self):
-        return []
+        return self.items
 
 
 class FakeDB:
     def __init__(self):
         self.added = []
+        self.raise_integrity_once = False
+        self.rollbacks = 0
 
     def query(self, model):
         return _EmptyAlertNotificationQuery()
@@ -25,17 +34,23 @@ class FakeDB:
         self.added.append(value)
 
     def commit(self):
+        if self.raise_integrity_once:
+            self.raise_integrity_once = False
+            raise IntegrityError("stmt", {}, Exception("dup"))
         return None
 
     def rollback(self):
-        return None
+        self.rollbacks += 1
 
 
 class StubEmailService:
-    def __init__(self):
+    def __init__(self, fail=False):
+        self.fail = fail
         self.calls = []
 
     def send_email(self, to_email, subject, body, attachments=None):
+        if self.fail:
+            raise RuntimeError("send failed")
         self.calls.append(
             {
                 "to_email": to_email,
@@ -46,7 +61,7 @@ class StubEmailService:
         )
 
 
-def _build_alert_with_sighting(image_path=None):
+def _build_alert_with_sighting(image_path=None, level="critical"):
     upload = Upload(id=10)
     upload.camera = None
 
@@ -63,7 +78,7 @@ def _build_alert_with_sighting(image_path=None):
     )
     sighting.upload = upload
 
-    alert = Alert(id=12, sighting_id=11, alert_level="critical", message="クマを検出")
+    alert = Alert(id=12, sighting_id=11, alert_level=level, message="クマを検出")
     alert.sighting = sighting
     return alert
 
@@ -100,6 +115,26 @@ def test_to_absolute_url_uses_app_base_url(monkeypatch):
     url = _to_absolute_url("/api/v1/images/processed/11/detected.jpg")
 
     assert url == "https://api.example.com/api/v1/images/processed/11/detected.jpg"
+
+
+def test_notify_for_alert_not_found(monkeypatch):
+    db = FakeDB()
+    monkeypatch.setattr(notification_service, "_get_alert", lambda *_: None)
+
+    stats = notification_service.notify_for_alert(db, 10)
+
+    assert stats["processed"] is False
+    assert stats["sent"] == 0
+
+
+def test_notify_for_alert_not_eligible(monkeypatch):
+    db = FakeDB()
+    monkeypatch.setattr(notification_service, "_get_alert", lambda *_: _build_alert_with_sighting(level="low"))
+
+    stats = notification_service.notify_for_alert(db, 1)
+
+    assert stats["processed"] is True
+    assert stats["eligible"] is False
 
 
 def test_notify_for_alert_sends_attachment(monkeypatch, tmp_path):
@@ -195,3 +230,22 @@ def test_notify_for_alert_skips_oversized_attachment(monkeypatch, tmp_path):
 
     assert result["sent"] == 1
     assert email_service.calls[0]["attachments"] is None
+
+
+def test_notify_for_alert_send_failure_integrity_skip(monkeypatch):
+    db = FakeDB()
+    db.raise_integrity_once = True
+    alert = _build_alert_with_sighting(level="warning")
+    recipient = SimpleNamespace(id=2, email="u2@e.com")
+    email_service = StubEmailService(fail=True)
+
+    monkeypatch.setattr(notification_service, "_get_alert", lambda *_: alert)
+    monkeypatch.setattr(notification_service, "_get_nearby_recipients", lambda *_: [recipient])
+    monkeypatch.setattr(notification_service, "_try_lock_notification_slot", lambda *_: True)
+    monkeypatch.setattr(notification_service, "get_email_service", lambda: email_service)
+
+    stats = notification_service.notify_for_alert(db, 1)
+
+    assert stats["failed"] == 0
+    assert stats["skipped"] >= 1
+    assert db.rollbacks >= 1
