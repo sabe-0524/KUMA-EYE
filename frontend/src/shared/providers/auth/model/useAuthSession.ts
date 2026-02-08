@@ -71,17 +71,17 @@ export const useAuthSession = (): UseAuthSessionResult => {
       return null;
     }
 
+    const requestUid = user.uid;
     const profileKey = queryKeys.user.profile(user.uid);
 
     try {
       await queryClient.invalidateQueries({ queryKey: profileKey, exact: true });
-      const latestProfile = await queryClient.fetchQuery({
-        queryKey: profileKey,
-        queryFn: async () => {
-          const idToken = await user.getIdToken();
-          return getMyProfile(idToken);
-        },
-      });
+      const idToken = await user.getIdToken();
+      const latestProfile = await getMyProfile(idToken);
+      if (activeUidRef.current !== requestUid) {
+        return null;
+      }
+      queryClient.setQueryData(profileKey, latestProfile);
       return latestProfile;
     } catch (error) {
       console.error('プロフィール再取得エラー:', error);
@@ -91,6 +91,7 @@ export const useAuthSession = (): UseAuthSessionResult => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.user.all });
       setUser(nextUser);
       setLoading(false);
       activeUidRef.current = nextUser?.uid ?? null;

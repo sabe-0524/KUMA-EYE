@@ -17,6 +17,14 @@ interface AlertPanelProps {
   nearbyBounds?: string | null;
 }
 
+const isWithinBounds = (lat: number, lng: number, bounds: string): boolean => {
+  const [swLat, swLng, neLat, neLng] = bounds.split(',').map(Number);
+  if ([swLat, swLng, neLat, neLng].some(Number.isNaN)) {
+    return false;
+  }
+  return lat >= swLat && lat <= neLat && lng >= swLng && lng <= neLng;
+};
+
 export const AlertPanel: React.FC<AlertPanelProps> = ({
   refreshInterval = 10000,
   onAlertClick,
@@ -79,14 +87,6 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
       await queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all });
     },
   });
-
-  const isWithinBounds = (lat: number, lng: number, bounds: string): boolean => {
-    const [swLat, swLng, neLat, neLng] = bounds.split(',').map(Number);
-    if ([swLat, swLng, neLat, neLng].some(Number.isNaN)) {
-      return false;
-    }
-    return lat >= swLat && lat <= neLat && lng >= swLng && lng <= neLng;
-  };
 
   const alerts = useMemo(() => {
     return (alertsQuery.data?.alerts ?? []).filter((alert) => alert.alert_level !== 'low');

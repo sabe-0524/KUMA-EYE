@@ -109,6 +109,7 @@ frontend/node_modules/
 # Logs
 *.log
 npm-debug.log*
+*.tsbuildinfo
 
 # Runtime PID files
 .backend.pid
