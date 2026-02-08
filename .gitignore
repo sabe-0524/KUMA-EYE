@@ -110,6 +110,7 @@ frontend/coverage/
 # Logs
 *.log
 npm-debug.log*
+*.tsbuildinfo
 
 # Runtime PID files
 .backend.pid
