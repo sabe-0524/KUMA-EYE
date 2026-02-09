@@ -31,6 +31,7 @@ def list_sightings(
     min_confidence: Optional[float] = Query(None, ge=0, le=1, description="最小信頼度"),
     camera_id: Optional[int] = Query(None, description="カメラID"),
     bounds: Optional[str] = Query(None, description="地図範囲 (sw_lat,sw_lng,ne_lat,ne_lng)"),
+    include_total: bool = Query(True, description="総件数を含めるか"),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -66,9 +67,9 @@ def list_sightings(
                 detail="Invalid bounds format. Expected: sw_lat,sw_lng,ne_lat,ne_lng",
             )
 
-    total = query.count()
     sightings = query.order_by(Sighting.detected_at.desc()).offset(offset).limit(limit).all()
     result = [build_sighting_response(sighting) for sighting in sightings]
+    total = query.count() if include_total else len(result)
 
     return SightingListResponse(total=total, sightings=result)
 

@@ -33,6 +33,17 @@ def test_list_sightings_success(build_test_client, fake_db):
     assert res.json()["total"] == 2
 
 
+def test_list_sightings_without_total_uses_returned_length(build_test_client, fake_db):
+    fake_db.set_query_result("Sighting", [_sighting(1), _sighting(2)])
+    client = build_test_client(sightings.router, fake_db)
+
+    res = client.get("/api/v1/sightings", params={"include_total": "false"})
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["total"] == len(body["sightings"])
+
+
 def test_list_sightings_invalid_bounds(build_test_client, fake_db):
     client = build_test_client(sightings.router, fake_db)
 

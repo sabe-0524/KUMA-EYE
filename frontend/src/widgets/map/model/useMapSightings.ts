@@ -40,6 +40,8 @@ export const useMapSightings = ({
   refreshTrigger,
   onDisplayContextChange,
 }: UseMapSightingsArgs): UseMapSightingsResult => {
+  const SIGHTINGS_LIMIT = 200;
+  const INCLUDE_TOTAL = false;
   const queryClient = useQueryClient();
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -60,10 +62,15 @@ export const useMapSightings = ({
   const canFetchSightings = displayMode !== 'nearby' || Boolean(requestBounds);
 
   const sightingsQuery = useQuery({
-    queryKey: queryKeys.sightings.list({ bounds: requestBounds, limit: 500 }),
+    queryKey: queryKeys.sightings.list({
+      bounds: requestBounds,
+      limit: SIGHTINGS_LIMIT,
+      includeTotal: INCLUDE_TOTAL,
+    }),
     queryFn: async () => {
       const response = await getSightings({
-        limit: 500,
+        limit: SIGHTINGS_LIMIT,
+        include_total: INCLUDE_TOTAL,
         ...(requestBounds ? { bounds: requestBounds } : {}),
       });
       return response.sightings.filter((sighting) => sighting.alert_level !== 'low');

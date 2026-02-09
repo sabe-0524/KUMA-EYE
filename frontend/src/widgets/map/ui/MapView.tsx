@@ -60,17 +60,6 @@ export const MapView: React.FC<MapViewProps> = ({
     return currentLocation ?? manualLocation;
   }, [currentLocation, manualLocation]);
 
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-amber-50/60 to-emerald-50/40">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-slate-600">地図を読み込み中...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="relative w-full h-full">
       <MapDisplayModeToggle displayMode={displayMode} onChange={setDisplayMode} />
@@ -115,6 +104,14 @@ export const MapView: React.FC<MapViewProps> = ({
         cameraPlacementMode={cameraPlacementMode}
         error={error}
       />
+
+      {loading && (
+        <div className="absolute inset-0 z-[1000] pointer-events-none flex items-center justify-center">
+          <div className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-3 text-sm text-slate-700 shadow">
+            目撃情報を読み込み中...
+          </div>
+        </div>
+      )}
 
       {selectedImage && <ImageModal imageUrl={selectedImage} onClose={closeImage} />}
     </div>

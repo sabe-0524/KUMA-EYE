@@ -194,6 +194,7 @@ export const getSightings = async (params?: {
   min_confidence?: number;
   camera_id?: number;
   bounds?: string;
+  include_total?: boolean;
   limit?: number;
   offset?: number;
 }): Promise<SightingListResponse> => {
