@@ -18,6 +18,7 @@ vi.mock('@/widgets/alert-panel', () => ({
 
 const baseProps = {
   displayMode: 'national' as const,
+  timeRange: '7d' as const,
   nearbyBounds: null,
   isCameraPlacementMode: false,
   selectedCameraLocation: null,

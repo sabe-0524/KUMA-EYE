@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/shared/providers/AuthProvider';
-import type { Alert, DisplayMode, LatLng, Sighting } from '@/shared/types';
+import type { Alert, DisplayMode, DisplayTimeRange, LatLng, Sighting } from '@/shared/types';
 import {
   DashboardFooter,
   DashboardHeader,
@@ -27,6 +27,7 @@ export default function HomePage() {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('national');
+  const [timeRange, setTimeRange] = useState<DisplayTimeRange>('7d');
   const [nearbyBounds, setNearbyBounds] = useState<string | null>(null);
   const [isCameraPlacementMode, setIsCameraPlacementMode] = useState(false);
   const [selectedCameraLocation, setSelectedCameraLocation] = useState<LatLng | null>(null);
@@ -110,6 +111,8 @@ export default function HomePage() {
           <MapView
             onSightingSelect={handleSightingClick}
             refreshTrigger={refreshTrigger}
+            timeRange={timeRange}
+            onTimeRangeChange={setTimeRange}
             onDisplayContextChange={handleDisplayContextChange}
             cameraPlacementMode={isCameraPlacementMode}
             cameraPlacementLocation={selectedCameraLocation}
@@ -120,6 +123,7 @@ export default function HomePage() {
         <DashboardSidePanel
           activePanel={activePanel}
           displayMode={displayMode}
+          timeRange={timeRange}
           nearbyBounds={nearbyBounds}
           isCameraPlacementMode={isCameraPlacementMode}
           selectedCameraLocation={selectedCameraLocation}

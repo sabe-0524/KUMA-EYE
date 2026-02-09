@@ -1,7 +1,10 @@
+import type { DisplayTimeRange } from '@/shared/types';
+
 export const queryKeys = {
   sightings: {
     all: ['sightings'] as const,
-    list: (params: { bounds: string | null; limit: number }) => ['sightings', 'list', params] as const,
+    list: (params: { bounds: string | null; limit: number; timeRange: DisplayTimeRange }) =>
+      ['sightings', 'list', params] as const,
   },
   alerts: {
     all: ['alerts'] as const,

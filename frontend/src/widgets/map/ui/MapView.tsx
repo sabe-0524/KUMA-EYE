@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { MapContainer } from 'react-leaflet';
-import type { DisplayMode, LatLng, Sighting } from '@/shared/types';
+import type { DisplayMode, DisplayTimeRange, LatLng, Sighting } from '@/shared/types';
 import { ImageModal } from '@/shared/ui';
 import {
   DEFAULT_CENTER,
@@ -17,11 +17,14 @@ import { MapLegend } from '@/widgets/map/ui/MapLegend';
 import { MapLocationMarkers } from '@/widgets/map/ui/MapLocationMarkers';
 import { MapSightingsLayer } from '@/widgets/map/ui/MapSightingsLayer';
 import { MapStatusBanners } from '@/widgets/map/ui/MapStatusBanners';
+import { MapTimeRangeToggle } from '@/widgets/map/ui/MapTimeRangeToggle';
 
 interface MapViewProps {
   onSightingSelect?: (sighting: Sighting) => void;
   refreshInterval?: number;
   refreshTrigger?: number;
+  timeRange: DisplayTimeRange;
+  onTimeRangeChange: (range: DisplayTimeRange) => void;
   onDisplayContextChange?: (context: { mode: DisplayMode; bounds: string | null }) => void;
   cameraPlacementMode?: boolean;
   cameraPlacementLocation?: LatLng | null;
@@ -32,6 +35,8 @@ export const MapView: React.FC<MapViewProps> = ({
   onSightingSelect,
   refreshInterval = 30000,
   refreshTrigger = 0,
+  timeRange,
+  onTimeRangeChange,
   onDisplayContextChange,
   cameraPlacementMode = false,
   cameraPlacementLocation = null,
@@ -53,6 +58,7 @@ export const MapView: React.FC<MapViewProps> = ({
   } = useMapSightings({
     refreshInterval,
     refreshTrigger,
+    timeRange,
     onDisplayContextChange,
   });
 
@@ -74,6 +80,7 @@ export const MapView: React.FC<MapViewProps> = ({
   return (
     <div className="relative w-full h-full">
       <MapDisplayModeToggle displayMode={displayMode} onChange={setDisplayMode} />
+      <MapTimeRangeToggle timeRange={timeRange} onChange={onTimeRangeChange} />
 
       <MapContainer
         center={DEFAULT_CENTER}

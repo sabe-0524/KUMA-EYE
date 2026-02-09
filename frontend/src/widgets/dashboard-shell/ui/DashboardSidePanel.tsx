@@ -3,12 +3,13 @@ import { X } from 'lucide-react';
 import { CameraRegisterPanel } from '@/features/camera-register';
 import { UploadPanel } from '@/features/upload-footage';
 import { AlertPanel } from '@/widgets/alert-panel';
-import type { Alert, DisplayMode, LatLng } from '@/shared/types';
+import type { Alert, DisplayMode, DisplayTimeRange, LatLng } from '@/shared/types';
 import type { ActivePanel } from '@/widgets/dashboard-shell/ui/DashboardHeader';
 
 interface DashboardSidePanelProps {
   activePanel: ActivePanel;
   displayMode: DisplayMode;
+  timeRange: DisplayTimeRange;
   nearbyBounds: string | null;
   isCameraPlacementMode: boolean;
   selectedCameraLocation: LatLng | null;
@@ -29,6 +30,7 @@ const getPanelTitle = (activePanel: ActivePanel): string => {
 export const DashboardSidePanel: React.FC<DashboardSidePanelProps> = ({
   activePanel,
   displayMode,
+  timeRange,
   nearbyBounds,
   isCameraPlacementMode,
   selectedCameraLocation,
@@ -75,7 +77,12 @@ export const DashboardSidePanel: React.FC<DashboardSidePanelProps> = ({
           )}
 
           {activePanel === 'alerts' && (
-            <AlertPanel onAlertClick={onAlertClick} displayMode={displayMode} nearbyBounds={nearbyBounds} />
+            <AlertPanel
+              onAlertClick={onAlertClick}
+              displayMode={displayMode}
+              timeRange={timeRange}
+              nearbyBounds={nearbyBounds}
+            />
           )}
         </div>
       </div>

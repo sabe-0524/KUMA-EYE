@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSightings } from '@/shared/api';
+import { getStartDateISO } from '@/shared/lib/timeRange';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { getCurrentPositionWithFallback } from '@/shared/lib/geolocation';
-import type { DisplayMode, LatLng, Sighting } from '@/shared/types';
+import type { DisplayMode, DisplayTimeRange, LatLng, Sighting } from '@/shared/types';
 import { getBoundsFromCenter, NEARBY_RADIUS_KM } from '@/widgets/map/lib/displayBounds';
 
 export type LocationStatus = 'idle' | 'requesting' | 'granted' | 'manual';
@@ -16,6 +17,7 @@ interface DisplayContext {
 interface UseMapSightingsArgs {
   refreshInterval: number;
   refreshTrigger: number;
+  timeRange: DisplayTimeRange;
   onDisplayContextChange?: (context: DisplayContext) => void;
 }
 
@@ -38,6 +40,7 @@ interface UseMapSightingsResult {
 export const useMapSightings = ({
   refreshInterval,
   refreshTrigger,
+  timeRange,
   onDisplayContextChange,
 }: UseMapSightingsArgs): UseMapSightingsResult => {
   const queryClient = useQueryClient();
@@ -60,9 +63,10 @@ export const useMapSightings = ({
   const canFetchSightings = displayMode !== 'nearby' || Boolean(requestBounds);
 
   const sightingsQuery = useQuery({
-    queryKey: queryKeys.sightings.list({ bounds: requestBounds, limit: 500 }),
+    queryKey: queryKeys.sightings.list({ bounds: requestBounds, limit: 500, timeRange }),
     queryFn: async () => {
       const response = await getSightings({
+        start_date: getStartDateISO(timeRange),
         limit: 500,
         ...(requestBounds ? { bounds: requestBounds } : {}),
       });

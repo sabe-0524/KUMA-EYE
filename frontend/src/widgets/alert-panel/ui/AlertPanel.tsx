@@ -4,8 +4,9 @@ import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCircle, AlertTriangle } from 'lucide-react';
 import { getUnacknowledgedAlerts, acknowledgeAlert, getAlertCount, getFullImageUrl } from '@/shared/api';
+import { isWithinRange } from '@/shared/lib/timeRange';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import type { Alert, AlertCount, AlertListResponse, DisplayMode } from '@/shared/types';
+import type { Alert, AlertCount, AlertListResponse, DisplayMode, DisplayTimeRange } from '@/shared/types';
 import { alertLevelLabels, alertLevelEmojis, alertLevelColors } from '@/shared/types';
 import { getRelativeTime } from '@/shared/lib/utils';
 import { ImageModal } from '@/shared/ui';
@@ -14,6 +15,7 @@ interface AlertPanelProps {
   refreshInterval?: number;
   onAlertClick?: (alert: Alert) => void;
   displayMode?: DisplayMode;
+  timeRange: DisplayTimeRange;
   nearbyBounds?: string | null;
 }
 
@@ -29,6 +31,7 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
   refreshInterval = 10000,
   onAlertClick,
   displayMode = 'national',
+  timeRange,
   nearbyBounds = null,
 }) => {
   const queryClient = useQueryClient();
@@ -94,11 +97,16 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({
 
   const filteredAlerts = useMemo(() => {
     return alerts.filter((alert) => {
+      const baseTime = alert.sighting?.detected_at ?? alert.notified_at;
+      if (!isWithinRange(baseTime, timeRange)) {
+        return false;
+      }
+
       if (displayMode !== 'nearby') return true;
       if (!nearbyBounds || !alert.sighting) return false;
       return isWithinBounds(alert.sighting.latitude, alert.sighting.longitude, nearbyBounds);
     });
-  }, [alerts, displayMode, nearbyBounds]);
+  }, [alerts, displayMode, nearbyBounds, timeRange]);
 
   const displayedCount = useMemo(() => {
     if (displayMode === 'nearby') {
