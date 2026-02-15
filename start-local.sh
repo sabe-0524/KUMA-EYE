@@ -20,6 +20,57 @@ if [ ! -d "frontend/node_modules" ]; then
     exit 1
 fi
 
+# --- Docker で DB と Redis を起動 ---
+echo "🐳 Docker の起動を確認中..."
+if ! docker info > /dev/null 2>&1; then
+    echo "⏳ Docker Desktop を起動しています..."
+    open -a Docker 2>/dev/null || true
+    # 最大90秒待機
+    for i in $(seq 1 30); do
+        docker info > /dev/null 2>&1 && break
+        echo "  Docker 起動待機中... ($i/30)"
+        sleep 3
+    done
+    if ! docker info > /dev/null 2>&1; then
+        echo "❌ Docker Desktop が起動できませんでした"
+        echo "Docker Desktop を手動で起動してから再度実行してください"
+        exit 1
+    fi
+fi
+echo "✅ Docker 起動確認"
+
+echo "🗄️  PostgreSQL と Redis を起動中..."
+docker compose up -d db redis
+
+# DB の healthcheck が通るまで待機（最大60秒）
+echo "⏳ PostgreSQL の準備を待機中..."
+for i in $(seq 1 20); do
+    if docker compose exec -T db pg_isready -U bearuser -d bear_detection_db > /dev/null 2>&1; then
+        echo "✅ PostgreSQL 準備完了"
+        break
+    fi
+    if [ "$i" -eq 20 ]; then
+        echo "❌ PostgreSQL の起動がタイムアウトしました"
+        echo "  docker compose logs db で状態を確認してください"
+        exit 1
+    fi
+    sleep 3
+done
+
+# Redis の準備確認
+echo "⏳ Redis の準備を待機中..."
+for i in $(seq 1 10); do
+    if docker compose exec -T redis redis-cli ping 2>/dev/null | grep -q PONG; then
+        echo "✅ Redis 準備完了"
+        break
+    fi
+    if [ "$i" -eq 10 ]; then
+        echo "❌ Redis の起動がタイムアウトしました"
+        exit 1
+    fi
+    sleep 2
+done
+
 # バックエンド起動
 echo "🔧 バックエンドを起動中..."
 cd backend

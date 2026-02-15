@@ -39,5 +39,14 @@ echo "🔍 ポートを使用しているプロセスをチェック中..."
 lsof -ti:8000 | xargs kill -9 2>/dev/null && echo "✅ ポート8000を解放しました" || echo "   ポート8000は空いています"
 lsof -ti:3000 | xargs kill -9 2>/dev/null && echo "✅ ポート3000を解放しました" || echo "   ポート3000は空いています"
 
+# Docker の DB/Redis コンテナを停止
+echo ""
+echo "🐳 Docker コンテナを停止中..."
+if docker info > /dev/null 2>&1; then
+    docker compose stop db redis 2>/dev/null && echo "✅ DB/Redis コンテナ停止完了" || echo "   Docker コンテナは起動していません"
+else
+    echo "   Docker は起動していません"
+fi
+
 echo ""
 echo "🎉 停止完了！"

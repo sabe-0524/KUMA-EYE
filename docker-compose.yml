@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgis/postgis:15-3.3
@@ -36,6 +34,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      PORT: "8000"
       DATABASE_URL: postgresql://bearuser:bearpass@db:5432/bear_detection_db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
