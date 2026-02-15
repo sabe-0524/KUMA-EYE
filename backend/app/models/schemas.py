@@ -30,6 +30,12 @@ class FileType(str, Enum):
     IMAGE = "image"
 
 
+class StreamSessionState(str, Enum):
+    ACTIVE = "active"
+    RECONNECTING = "reconnecting"
+    STOPPED = "stopped"
+
+
 # =============================================================================
 # Camera Schemas
 # =============================================================================
@@ -109,6 +115,54 @@ class UploadDetailResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+# =============================================================================
+# Stream Schemas
+# =============================================================================
+
+class StreamSessionCreateRequest(BaseModel):
+    camera_id: Optional[int] = Field(None, description="登録済みカメラID")
+    latitude: Optional[float] = Field(None, ge=-90, le=90, description="緯度（カメラ未指定時）")
+    longitude: Optional[float] = Field(None, ge=-180, le=180, description="経度（カメラ未指定時）")
+    frame_interval: int = Field(5, ge=1, le=60, description="フレーム送信間隔（秒）")
+
+
+class StreamSessionResponse(BaseModel):
+    session_id: str
+    upload_id: int
+    status: StreamSessionState
+    frame_interval: int
+    started_at: datetime
+    reconnect_interval_seconds: int
+
+
+class StreamFrameAck(BaseModel):
+    session_id: str
+    upload_id: int
+    frame_number: int
+    detections_count: int
+    alert_level: Optional[AlertLevel] = None
+    processed_at: datetime
+
+
+class StreamSessionStatus(BaseModel):
+    session_id: str
+    upload_id: int
+    status: StreamSessionState
+    frame_interval: int
+    started_at: datetime
+    last_frame_at: Optional[datetime] = None
+    stopped_at: Optional[datetime] = None
+    frames_received: int
+    frames_processed: int
+    detections_count: int
+    reconnect_attempts: int
+
+
+class StreamSessionStopResponse(BaseModel):
+    session: StreamSessionStatus
+    message: str
 
 
 # =============================================================================

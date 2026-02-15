@@ -13,6 +13,11 @@ import type {
   AlertCount,
   UploadResponse,
   UploadDetail,
+  StreamFrameAck,
+  StreamSessionCreateRequest,
+  StreamSessionResponse,
+  StreamSessionStatus,
+  StreamSessionStopResponse,
   UserProfile,
   UserSyncResponse,
 } from '@/shared/types';
@@ -180,6 +185,50 @@ export const getUploads = async (params?: {
   limit?: number;
 }): Promise<UploadDetail[]> => {
   const response = await apiClient.get<UploadDetail[]>('/uploads', { params });
+  return response.data;
+};
+
+export const createStreamSession = async (
+  payload: StreamSessionCreateRequest
+): Promise<StreamSessionResponse> => {
+  const response = await apiClient.post<StreamSessionResponse>('/streams/sessions', payload);
+  return response.data;
+};
+
+export const sendStreamFrame = async (
+  sessionId: string,
+  frameFile: File | Blob,
+  frameNumber: number,
+  capturedAt?: string
+): Promise<StreamFrameAck> => {
+  const formData = new FormData();
+  const uploadFile =
+    frameFile instanceof File ? frameFile : new File([frameFile], `frame_${frameNumber}.jpg`, { type: 'image/jpeg' });
+  formData.append('frame_file', uploadFile);
+  formData.append('frame_number', frameNumber.toString());
+  if (capturedAt) {
+    formData.append('captured_at', capturedAt);
+  }
+
+  const response = await apiClient.post<StreamFrameAck>(
+    `/streams/sessions/${sessionId}/frames`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data;
+};
+
+export const getStreamSession = async (sessionId: string): Promise<StreamSessionStatus> => {
+  const response = await apiClient.get<StreamSessionStatus>(`/streams/sessions/${sessionId}`);
+  return response.data;
+};
+
+export const stopStreamSession = async (sessionId: string): Promise<StreamSessionStopResponse> => {
+  const response = await apiClient.post<StreamSessionStopResponse>(`/streams/sessions/${sessionId}/stop`);
   return response.data;
 };
 

@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
-import { AlertCircle, Upload, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertCircle, Upload, Video, X } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
+import { WebcamStreamPanel } from '@/features/live-stream';
 import { useUploadWorkflow } from '@/features/upload-footage/model/useUploadWorkflow';
 import { UploadDropzone } from '@/features/upload-footage/ui/UploadDropzone';
 import { UploadLocationSelector } from '@/features/upload-footage/ui/UploadLocationSelector';
@@ -11,7 +12,9 @@ interface UploadPanelProps {
   onUploadComplete?: () => void;
 }
 
-export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) => {
+type UploadMode = 'file' | 'live';
+
+const FileUploadContent: React.FC<UploadPanelProps> = ({ onUploadComplete }) => {
   const {
     cameras,
     selectedCameraId,
@@ -90,6 +93,42 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) =>
             <X className="w-4 h-4" />
           </button>
         </div>
+      )}
+    </div>
+  );
+};
+
+export const UploadPanel: React.FC<UploadPanelProps> = ({ onUploadComplete }) => {
+  const [mode, setMode] = useState<UploadMode>('file');
+
+  return (
+    <div className="space-y-3">
+      <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50/80 p-1">
+        <button
+          type="button"
+          onClick={() => setMode('file')}
+          className={`px-3 py-1.5 rounded-md text-sm ${
+            mode === 'file' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+          }`}
+        >
+          ファイル
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('live')}
+          className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-1 ${
+            mode === 'live' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+          }`}
+        >
+          <Video className="w-4 h-4" />
+          ライブ
+        </button>
+      </div>
+
+      {mode === 'file' ? (
+        <FileUploadContent onUploadComplete={onUploadComplete} />
+      ) : (
+        <WebcamStreamPanel onDetection={onUploadComplete} />
       )}
     </div>
   );

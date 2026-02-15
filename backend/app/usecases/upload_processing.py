@@ -8,13 +8,13 @@ import shutil
 from typing import Iterator
 
 from PIL import Image, UnidentifiedImageError
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.database import Alert, Camera, Detection, Sighting, Upload
+from app.models.database import Camera, Upload
 from app.services.detection import BearDetectionService, get_detection_service
 from app.services.notification_service import NOTIFIABLE_ALERT_LEVELS, notify_for_alert
 from app.services.video_processor import VideoProcessor, get_video_processor
+from app.usecases.detection_persistence import save_detection_result
 
 logger = logging.getLogger(__name__)
 
@@ -181,62 +181,18 @@ def _save_detection_result(
     detection_service: BearDetectionService,
     video_processor: VideoProcessor,
 ) -> tuple[int, int, str]:
-    max_confidence = max(d["confidence"] for d in detections)
-    bear_count = len(detections)
-
-    alert_level = detection_service.calculate_alert_level(detections)
-    if not alert_level:
-        alert_level = "warning" if max_confidence >= 0.7 else "caution"
-
-    annotated_image = detection_service.draw_detections(frame_image, detections)
-    processed_path = video_processor.save_processed_frame(
-        annotated_image,
-        upload.id,
-        frame_number,
-    )
-
-    sighting = Sighting(
-        upload_id=upload.id,
-        location=func.ST_SetSRID(func.ST_MakePoint(longitude, latitude), 4326),
+    return save_detection_result(
+        db=db,
+        upload=upload,
+        frame_number=frame_number,
+        detections=detections,
         latitude=latitude,
         longitude=longitude,
-        detected_at=datetime.now(),
-        confidence=max_confidence,
-        bear_count=bear_count,
-        alert_level=alert_level,
-        image_path=processed_path,
-        frame_number=frame_number,
-    )
-    db.add(sighting)
-    db.flush()
-
-    for det in detections:
-        detection = Detection(
-            sighting_id=sighting.id,
-            class_name=det["class_name"],
-            confidence=det["confidence"],
-            bbox_x=det["bbox"]["x"],
-            bbox_y=det["bbox"]["y"],
-            bbox_w=det["bbox"]["width"],
-            bbox_h=det["bbox"]["height"],
-        )
-        db.add(detection)
-
-    alert_message = detection_service.create_alert_message(
-        detections,
-        alert_level,
         camera_name=camera_name,
-        location=(latitude, longitude),
+        detection_service=detection_service,
+        video_processor=video_processor,
+        frame_image=frame_image,
     )
-    alert = Alert(
-        sighting_id=sighting.id,
-        alert_level=alert_level,
-        message=alert_message,
-    )
-    db.add(alert)
-    db.flush()
-
-    return sighting.id, alert.id, alert_level
 
 
 def _mark_upload_failed(db: Session, upload_id: int, error_message: str) -> None:

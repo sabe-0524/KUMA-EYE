@@ -36,5 +36,8 @@ ENV PYTHONUNBUFFERED=1
 # Expose port (Cloud Run uses PORT environment variable)
 EXPOSE 8080
 
-# Run the application (production mode without --reload)
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 2
+# Run the application.
+# NOTE:
+# Stream sessions are in-memory in PoC, so multi-worker breaks session lookup.
+# Use a single worker by default and allow override via UVICORN_WORKERS.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers ${UVICORN_WORKERS:-1}

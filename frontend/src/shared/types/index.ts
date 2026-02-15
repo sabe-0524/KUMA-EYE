@@ -3,6 +3,7 @@
 export type AlertLevel = 'critical' | 'warning' | 'caution' | 'low';
 export type UploadStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type FileType = 'video' | 'image';
+export type StreamSessionState = 'active' | 'reconnecting' | 'stopped';
 export type DisplayMode = 'national' | 'nearby';
 export interface LatLng {
   lat: number;
@@ -94,6 +95,50 @@ export interface UploadDetail {
   latitude?: number;
   longitude?: number;
   sighting_count: number;
+}
+
+export interface StreamSessionCreateRequest {
+  camera_id?: number;
+  latitude?: number;
+  longitude?: number;
+  frame_interval?: number;
+}
+
+export interface StreamSessionResponse {
+  session_id: string;
+  upload_id: number;
+  status: StreamSessionState;
+  frame_interval: number;
+  started_at: string;
+  reconnect_interval_seconds: number;
+}
+
+export interface StreamFrameAck {
+  session_id: string;
+  upload_id: number;
+  frame_number: number;
+  detections_count: number;
+  alert_level?: AlertLevel;
+  processed_at: string;
+}
+
+export interface StreamSessionStatus {
+  session_id: string;
+  upload_id: number;
+  status: StreamSessionState;
+  frame_interval: number;
+  started_at: string;
+  last_frame_at?: string;
+  stopped_at?: string;
+  frames_received: number;
+  frames_processed: number;
+  detections_count: number;
+  reconnect_attempts: number;
+}
+
+export interface StreamSessionStopResponse {
+  session: StreamSessionStatus;
+  message: string;
 }
 
 // 警報

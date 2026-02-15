@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 500
     ALLOWED_IMAGE_TYPES: str = "image/jpeg,image/png"
     ALLOWED_VIDEO_TYPES: str = "video/mp4,video/quicktime,video/x-msvideo"
+
+    # Stream (webcam PoC)
+    STREAM_RECONNECT_INTERVAL_SECONDS: int = 5
+    STREAM_FRAME_MAX_BYTES: int = 5 * 1024 * 1024
+    STREAM_CAPTURE_WIDTH: int = 1280
+    STREAM_CAPTURE_HEIGHT: int = 720
+    STREAM_JPEG_QUALITY: int = 85
     
     # SMTP (Email)
     SMTP_HOST: str = "smtp.gmail.com"
